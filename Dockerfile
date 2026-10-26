@@ -18,9 +18,8 @@ WORKDIR /app
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 NEXT_TELEMETRY_DISABLED=1 \
     DATABASE_PATH=/data/app.sqlite TZ=America/Sao_Paulo
 RUN mkdir -p /data && chown node:node /data
+# `pnpm build` (postbuild) already copies public/ and .next/static into the standalone folder
 COPY --from=build --chown=node:node /app/.next/standalone ./
-COPY --from=build --chown=node:node /app/.next/static ./.next/static
-COPY --from=build --chown=node:node /app/public ./public
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]
