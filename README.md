@@ -5,7 +5,8 @@
 Jornada de pré-aprovação para a atendente da clínica, com o paciente na frente: cadastro em dois passos (dados do
 paciente; renda e tratamento), consulta em paralelo a quatro financeiras simuladas com prazo máximo de 10 s, status
 de cada financeira chegando na tela conforme respondem, ofertas por financeira × prazo com parcela pela Tabela Price,
-ordenação por menor parcela ou menor total, escolha salva no servidor e tela de confirmação.
+ordenação por menor parcela ou menor total, escolha salva no servidor e tela de confirmação. A página inicial oferece retomar a
+última consulta aberta neste navegador.
 
 Stack: Next.js 16.4 (App Router com Cache Components), React 19, TypeScript, Tailwind 4, nuqs, zod 4, SQLite via
 `node:sqlite`, Vitest 5, Docker Compose. Um único processo Node é front, API e orquestrador.
@@ -56,6 +57,8 @@ Com o servidor no ar, `node scripts/demo-api.mjs delta_timeout` percorre o contr
 o status de cada financeira, a linha final com `finishReason`, ofertas, `outcome` e `nextStep`, as três primeiras
 ofertas e o `POST .../choice` da primeira oferta (201), a mesma escolha de novo (200) e uma diferente (409). Argumentos:
 o preset ou `natural`, depois a URL base. Com `delta_timeout`, ~2 s após o fechamento o servidor loga `late_result_ignored`.
+`curl -s localhost:3000/api/lenders/metrics` devolve, por financeira, chamadas, aprovações, recusas, indisponibilidades, taxa de
+erro, taxa de timeout, respostas tardias e latência p50/p95, só do fluxo natural (consultas com cenário forçado ficam de fora).
 
 ## Como forçar cada cenário
 
@@ -156,6 +159,7 @@ Dependências, de cima para baixo: `app/` e `src/components` conhecem `src/serve
 | Orquestração | `src/orchestration/run-consultation.ts` (`call-lender.ts` é o ponto de retry; `clock.ts` injeta o tempo) |
 | Cenários | `src/lenders/scenarios.ts` |
 | Polling | `src/components/consultation/use-consultation-snapshot.ts` |
+| Métricas por financeira | `src/server/metrics.service.ts`, exposto em `GET /api/lenders/metrics` |
 
 ## Decisões e trade-offs
 
@@ -219,6 +223,7 @@ JSON em todas as rotas; erros no formato `{ code, message, errors? }`; `Cache-Co
 | `GET /api/consultations/{id}` | — | `200 ConsultationSnapshot`; `404` |
 | `POST /api/consultations/{id}/choice` | `{ lenderId, termMonths }` | `201 { choice }`; `200 { choice }` se for a mesma escolha (idempotente); `400` JSON inválido; `404`; `409 already_chosen`; `422` corpo inválido, `lender_not_approved` ou `term_not_offered` |
 | `GET /api/health` | — | `200 { ok: true, db: 'ok' }`; `503 { ok: false, db: 'error' }` |
+| `GET /api/lenders/metrics` | — | `200 { generatedAt, lenders: [{ lenderId, lenderName, calls, approved, refused, unavailable, errorRate, timeoutRate, lateAnswers, latencyP50Ms, latencyP95Ms }] }`, fluxo natural apenas |
 
 A leitura do snapshot reconcilia: consulta `querying` com prazo vencido é fechada como `reconciled` antes de responder.
 Tipo devolvido pelo `GET` (`src/domain/types.ts`, resumido aos campos):
@@ -293,16 +298,13 @@ nos testes:
 ## O que ficou de fora e o que faria com mais tempo
 
 - SSE em `GET /api/consultations/{id}/events` com snapshot inicial, trocando só o corpo do hook de polling.
-- Métricas por financeira (`GET /api/lenders/metrics`): `latency_ms`, `reason_code` e `late_*` já ficam gravados por
-  resultado; falta o agregador (excluindo cenários forçados).
+- Tela de métricas: hoje `GET /api/lenders/metrics` devolve só o JSON.
 - Retry único na Delta em caso de 500, dentro do orçamento `deadline_at − now`, em `src/orchestration/call-lender.ts`.
 - Cookie assinado (HMAC) para o rascunho.
 - PostgreSQL: reescrever `src/db/client.ts`, as migrações e `src/server/repositories.ts`; o SQL explícito ajuda.
 - Testes de componente (jsdom, `nuqs/adapters/testing`) e E2E; hoje os handlers só são exercitados por `scripts/demo-api.mjs`.
 - `<ViewTransition>` entre os passos e na chegada das ofertas; acessibilidade além do básico (foco visível,
   `aria-live`, `role="alert"`, radiogroup), com revisão em leitor de tela.
-- "Retomar última consulta" na página inicial: o cookie `pm_last_consultation` já é gravado ao criar a consulta e
-  `readLastConsultationId` existe em `src/server/draft-cookie.ts`; falta o link.
 - Filtro "só quem cobre tudo" e ordenação por juros: `interestCents` e `isPartial` já vêm no DTO; é um literal em
   `src/url-state/parsers.ts`, um `case` em `src/domain/sorting.ts` e uma opção no controle.
 - Chave de idempotência no `POST /api/consultations` (hoje cada submit cria uma consulta).
@@ -332,18 +334,21 @@ Usei o Claude Code (Anthropic) do início ao fim, e prefiro dizer exatamente ond
 
 ## Log de horas
 
-Planejamento em 25/10; implementação em 26/10, de madrugada. Horários a preencher.
+Horários reais, tirados dos commits e dos arquivos. Os blocos T1 a T4 se sobrepõem porque os módulos puros do domínio
+foram escritos por agentes em paralelo enquanto eu escrevia a orquestração e as telas; o total de relógio ficou
+abaixo das 6 h esperadas por causa desse paralelismo, não por corte de escopo.
 
 | Bloco | Início | Fim | Duração | Notas |
 |---|---|---|---|---|
-| Planejamento (25/10) | __:__ | __:__ | __:__ | docs 01, 03, 05, 06 e 07; revisão por agentes de planejamento e crítica |
-| T0 setup e spike | __:__ | __:__ | __:__ | `node:sqlite` em `next dev` e `next build`; Docker; `.env.example`; docs copiados |
-| T1 domínio | __:__ | __:__ | __:__ | módulos puros por agentes em paralelo a partir das fixtures do arquivo 05; revisão |
-| T2 persistência, orquestração e API | __:__ | __:__ | __:__ | migrações, repositórios, `runConsultation`, snapshot, handlers; testes com fake timers |
-| T3 cadastro | __:__ | __:__ | __:__ | cookie do rascunho, actions, dois passos, validação na hora, seletor de cenário |
-| T4 consulta | __:__ | __:__ | __:__ | polling, painel, trilho, ofertas, escolha, confirmação, telas de erro |
-| T5 Docker e README | __:__ | __:__ | __:__ | imagem standalone, `compose.yaml`, este README |
-| T6 ensaio | __:__ | __:__ | __:__ | roteiro do arquivo 03 com cronômetro; sessão no navegador |
+| Planejamento (25/10) | 12:10 | 13:45 | 1h35 | scaffold, pesquisa nas docs do Next 16.4, nuqs, React, Node e Vitest; docs/07 revisado por agentes |
+| T0 setup e spike (26/10) | 00:30 | 00:36 | 0h06 | `node:sqlite` em `next dev` e `next build`; Docker; `.env.example`; docs copiados |
+| T1 domínio | 00:37 | 00:55 | 0h18 | módulos puros por agentes em paralelo a partir das fixtures do arquivo 05; revisão |
+| T2 persistência, orquestração e API | 00:40 | 00:58 | 0h18 | migrações, repositórios, `runConsultation`, snapshot, handlers; testes com fake timers |
+| T3 cadastro | 00:45 | 00:58 | 0h13 | cookie do rascunho, actions, dois passos, validação na hora, seletor de cenário |
+| T4 consulta | 00:50 | 01:00 | 0h10 | polling, painel, trilho, ofertas, escolha, confirmação, telas de erro |
+| Verificação | 00:58 | 01:22 | 0h24 | suíte, build, `demo-api`, sessão no navegador (desktop e celular), Docker a partir de clone limpo |
+| T5 README | 01:05 | 01:22 | 0h17 | este README |
+| Bônus e revisão (26/10) | 08:20 | 08:50 | 0h30 | métricas por financeira, retomar consulta na home, revisão adversarial do código |
 
 ## Glossário
 

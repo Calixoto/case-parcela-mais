@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { applyPersona } from '@/app/register/actions';
+import { ResumeConsultation } from '@/src/components/home/resume-consultation';
 import { copy } from '@/src/copy/pt-BR';
 import { SCENARIO_IDS } from '@/src/domain/types';
 
@@ -15,9 +17,15 @@ export default function HomePage() {
       <section className="flex flex-col gap-5">
         <h1 className="font-display text-5xl">{copy.home.title}</h1>
         <p className="max-w-prose text-lg text-ink-muted">{copy.home.lead}</p>
-        <Link href="/register/patient" className="inline-flex h-12 w-fit items-center rounded-control bg-mint px-5 font-medium text-enamel hover:bg-[#19775f]">
-          {copy.home.start}
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/register/patient" className="inline-flex h-12 w-fit items-center rounded-control bg-mint px-5 font-medium text-enamel hover:bg-[#19775f]">
+            {copy.home.start}
+          </Link>
+          {/* Reads a cookie: streams in behind the static shell. */}
+          <Suspense fallback={null}>
+            <ResumeConsultation />
+          </Suspense>
+        </div>
       </section>
 
       <section className="flex flex-col gap-4 border-t border-rule pt-8">
