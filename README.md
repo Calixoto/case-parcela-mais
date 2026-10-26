@@ -6,12 +6,14 @@ Jornada de pré-aprovação para a atendente da clínica, com o paciente na fren
 paciente; renda e tratamento), consulta em paralelo a quatro financeiras simuladas com prazo máximo de 10 s, status
 de cada financeira chegando na tela conforme respondem, ofertas por financeira × prazo com parcela pela Tabela Price,
 ordenação por menor parcela ou menor total, escolha salva no servidor e tela de confirmação. A página inicial oferece retomar a
-última consulta aberta neste navegador.
+última consulta iniciada neste navegador, até a próxima "Nova simulação".
 
 Stack: Next.js 16.4 (App Router com Cache Components), React 19, TypeScript, Tailwind 4, shadcn/ui (primitivas Base UI)
 com a fonte Geist, nuqs, zod 4, SQLite via `node:sqlite`, Vitest 5, Docker Compose. Um único processo Node é front, API
 e orquestrador. A interface é o visual padrão do shadcn (tema `neutral`), sem design próprio: o enunciado diz que uma
 interface limpa e fácil de usar basta e que o layout não é avaliado pixel a pixel.
+
+Publicado em https://parcela-mais-production.up.railway.app.
 
 ## Como rodar
 
@@ -25,6 +27,10 @@ Abre em http://localhost:3000. O SQLite fica em `/data/app.sqlite`, no volume `a
 `-wal` e `-shm`), e sobrevive a `docker compose down`. O `healthcheck` chama `GET /api/health` a cada 10 s;
 `stop_grace_period: 20s` deixa uma consulta em andamento terminar, já que as financeiras são consultadas depois da
 resposta HTTP (`after()`). Imagem multi-stage com `output: 'standalone'`, rodando como `USER node`.
+
+Publicado no Railway em https://parcela-mais-production.up.railway.app: a mesma imagem do `Dockerfile`, o SQLite num
+volume montado em `/data` e variáveis de ambiente equivalentes às do `compose.yaml`. O deploy é feito com `railway up`
+a partir deste diretório; o serviço não está ligado ao repositório, então um push não publica sozinho.
 
 Sem Docker, com Node 24 (o `node:sqlite` é embutido) e pnpm 10 via corepack:
 
@@ -48,7 +54,7 @@ O banco é criado e migrado no primeiro acesso em `./data/app.sqlite` (pasta ign
 
 | Comando | O que faz |
 |---|---|
-| `pnpm test` | Vitest: 14 arquivos, 544 testes, menos de 1 s (`pnpm test:watch` em modo watch) |
+| `pnpm test` | Vitest: 15 arquivos, 573 testes, menos de 1 s (`pnpm test:watch` em modo watch) |
 | `pnpm typecheck` | `next typegen && tsc --noEmit` |
 | `pnpm lint` | ESLint com `eslint-config-next` (inclui as regras do React Compiler) |
 | `pnpm build` | `next build` com Turbopack e `output: 'standalone'`; o `postbuild` copia `public/` e `.next/static` para `.next/standalone/` |
@@ -195,11 +201,20 @@ Dependências, de cima para baixo: `app/` e `src/components` conhecem `src/serve
   financeira é um arquivo e uma linha em `registry.ts`. Trade-off: um comportamento que o simulador não modela
   (outro código de erro, aprovação parcial) pede override novo.
 - **Cadastro em 2 passos com rascunho bruto em cookie httpOnly.** `pm_draft` guarda as strings como digitadas, escrito
-  só por Server Actions: "Voltar" grava sem validar e recarregar refaz a tela; o cliente valida no blur com o mesmo
-  schema zod que o servidor revalida; o cenário vive na URL, no formulário e na coluna, nunca no cookie (senão
-  "tentar um valor menor" repetiria `none_approve`); "Continuar" vem antes de "Voltar" no DOM (a linha é invertida
-  no visual) para o Enter num campo avançar, não voltar. Trade-off: ~300 B por requisição e formatação no blur que
-  reescreve o que foi digitado.
+  só por Server Actions: "Voltar" grava sem validar (nem dispara a validação do campo que perde o foco) e recarregar
+  refaz a tela; o rascunho é apagado quando a consulta começa (voltar depois dela mostra o formulário vazio, sem
+  duplicar a consulta nem expor o paciente anterior), "Tentar com um valor menor" e "Consultar de novo" o
+  restauram de um cookie httpOnly com o que foi digitado para aquela consulta, só no navegador que a iniciou (os dados
+  completos do paciente nunca são relidos do banco pelo id da URL), e "Nova simulação" fica também na tela da consulta; o cliente valida ao sair de um campo alterado e a cada tecla depois de um erro, com o mesmo schema zod
+  que o servidor revalida; CPF, celular e valores ganham máscara enquanto se digita (`src/components/form/masks.ts`,
+  com o cursor preservado) e o valor ganha os centavos ao sair do campo ou ao enviar; o cenário vive na URL, no
+  formulário e na coluna, nunca no cookie (senão "tentar um valor menor" repetiria `none_approve`); "Continuar" vem
+  antes de "Voltar" no DOM (a linha é invertida no visual) para o Enter num campo avançar, não voltar; clicar num
+  botão de envio não tira o foco do campo, para nenhum erro surgir no meio do clique e mover o botão. A máscara lê
+  cada edição contra o valor anterior: tecla além do limite é ignorada, apagar um separador apaga o dígito ao lado,
+  um ponto digitado no valor vira a vírgula dos centavos e uma colagem ambígua ("3500.00") fica como colada para o
+  schema recusar, em vez de virar outro número. Trade-off: ~300 B por requisição e uma máscara que reescreve o texto
+  a cada tecla, o que apaga o desfazer (Ctrl+Z) do navegador nesses campos.
 - **Server Actions para a interface e Route Handlers para o contrato, com os mesmos services.** Actions dão cookie,
   redirect e formulário sem JavaScript; handlers dão polling e `curl`. Trade-off: duas portas de entrada alinhadas
   pelo mesmo schema.
@@ -216,7 +231,7 @@ Dependências, de cima para baixo: `app/` e `src/components` conhecem `src/serve
   padrão), no lugar do layout dobrado que havia; o `Spinner` traz `aria-label` em inglês, por isso vai com
   `aria-hidden` e o texto do botão faz o anúncio; e são componentes copiados, que o repositório passa a manter
   (atualizar é rodar a CLI de novo e revisar o diff).
-- **Vitest só em node, fake timers e SQLite em memória.** 544 testes em menos de 1 s: CPF, idade com data injetada,
+- **Vitest só em node, fake timers e SQLite em memória.** 573 testes em menos de 1 s: CPF, idade com data injetada,
   Price (28 fixtures), ordenações, regras, cenários, orquestração (encerra cedo, prazo, 500, resposta tardia sem
   alterar o banco, 4 presets com os dados de exemplo → 12/9/9/0), reconciliação, escolha, schema. Trade-off: sem
   testes de componente nem E2E; handlers sem teste unitário (precisam de request scope).
@@ -319,6 +334,9 @@ nos testes:
 
 ## O que ficou de fora e o que faria com mais tempo
 
+- CI/CD: um workflow no GitHub Actions rodando `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` e o
+  `docker build` em cada push e pull request; o deploy no Railway só depois de tudo verde (ligando o serviço ao
+  repositório), seguido de um smoke test contra a URL publicada: `/api/health` e os quatro cenários pela API.
 - SSE em `GET /api/consultations/{id}/events` com snapshot inicial, trocando só o corpo do hook de polling.
 - Tela de métricas: hoje `GET /api/lenders/metrics` devolve só o JSON.
 - Retry único na Delta em caso de 500, dentro do orçamento `deadline_at − now`, em `src/orchestration/call-lender.ts`.
@@ -369,8 +387,9 @@ Usei o Claude Code (Anthropic) do início ao fim, e prefiro dizer exatamente ond
 ## Log de horas
 
 Horários reais, tirados dos commits e dos arquivos. Os blocos T1 a T4 se sobrepõem porque os módulos puros do domínio
-foram escritos por agentes em paralelo enquanto eu escrevia a orquestração e as telas; o total de relógio ficou
-abaixo das 6 h esperadas por causa desse paralelismo, não por corte de escopo.
+foram escritos por agentes em paralelo enquanto eu escrevia a orquestração e as telas; a entrega inicial ficou
+abaixo das 6 h esperadas por causa desse paralelismo, não por corte de escopo; o bloco de ajustes veio depois, numa
+revisão da interface e do comportamento.
 
 | Bloco | Início | Fim | Duração | Notas |
 |---|---|---|---|---|
@@ -383,7 +402,7 @@ abaixo das 6 h esperadas por causa desse paralelismo, não por corte de escopo.
 | Verificação | 00:58 | 01:22 | 0h24 | suíte, build, `demo-api`, sessão no navegador (desktop e celular), Docker a partir de clone limpo |
 | T5 README | 01:05 | 01:22 | 0h17 | este README |
 | Bônus e revisão (26/10) | 08:20 | 08:50 | 0h30 | métricas por financeira, retomar consulta na home, revisão adversarial do código |
-| Ajustes (26/10) | 12:33 | 14:15 | 1h42 | shadcn/ui em todas as telas, remoção dos extras (exemplos na home, script de demo, `overrides` público), revisão adversarial com verificação, presets que não dependem dos dados, README |
+| Ajustes (26/10) | 12:33 | 16:45 | 3h12 | sem cerca de 1 h de pausa; shadcn/ui em todas as telas, remoção dos extras (exemplos na home, script de demo, `overrides` público), revisão adversarial com verificação, presets que não dependem dos dados, máscaras enquanto digita e "Voltar" sem validação, formulário limpo após a consulta com "tentar de novo" pelo cookie, README |
 
 ## Glossário
 
