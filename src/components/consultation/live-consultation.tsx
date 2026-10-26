@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { startNewSimulation } from '@/app/register/actions';
+import { SubmitButton } from '@/src/components/form/submit-button';
 import { Alert, AlertDescription, AlertTitle } from '@/src/components/ui/alert';
 import { Button } from '@/src/components/ui/button';
 import { Separator } from '@/src/components/ui/separator';
@@ -31,14 +33,20 @@ export function LiveConsultation({ initial, timeZone }: Props) {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-2">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">{snapshot.patient.fullName}</h1>
           <p className="text-sm text-muted-foreground">{startedLine}</p>
+          <p className="text-sm text-muted-foreground">
+            {copy.consultation.treatment} <span className="font-medium text-foreground tabular-nums">{formatBRL(snapshot.treatmentAmountCents)}</span>
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {copy.consultation.treatment} <span className="font-medium text-foreground tabular-nums">{formatBRL(snapshot.treatmentAmountCents)}</span>
-        </p>
+        {/* Another patient, at any moment: clears what this browser remembers and opens an empty form. */}
+        <form action={startNewSimulation}>
+          <SubmitButton variant="secondary" pendingLabel={copy.actions.newSimulation}>
+            {copy.actions.newSimulation}
+          </SubmitButton>
+        </form>
       </header>
 
       <Separator />
@@ -71,7 +79,7 @@ export function LiveConsultation({ initial, timeZone }: Props) {
       ) : null}
 
       {snapshot.summary.outcome === 'none_approved' ? (
-        <NoApprovalPanel summary={snapshot.summary} />
+        <NoApprovalPanel consultationId={snapshot.id} summary={snapshot.summary} />
       ) : (
         <OffersTable consultationId={snapshot.id} offers={snapshot.offers} choice={snapshot.choice} querying={querying} />
       )}

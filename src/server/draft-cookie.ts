@@ -10,6 +10,7 @@ import { getConfig } from './config';
  */
 const DRAFT_COOKIE = 'pm_draft';
 const LAST_CONSULTATION_COOKIE = 'pm_last_consultation';
+const RETRY_COOKIE = 'pm_retry';
 const DRAFT_VERSION = 1;
 const DAY_SECONDS = 60 * 60 * 24;
 
@@ -58,4 +59,31 @@ export async function writeLastConsultationId(id: string): Promise<void> {
 
 export async function clearLastConsultationId(): Promise<void> {
   (await cookies()).delete(LAST_CONSULTATION_COOKIE);
+}
+
+const retryCookieSchema = z.object({ v: z.literal(DRAFT_VERSION), consultationId: z.string(), fields: z.record(z.string(), z.string()) });
+
+/**
+ * What was typed for the last consultation this browser started, kept after the draft is cleared so "Tentar com um
+ * valor menor" and "Consultar de novo" can refill the form. Never rebuilt from the database by id: the full CPF,
+ * birth date and phone stay with the browser that typed them.
+ */
+export async function writeRetryDraft(consultationId: string, fields: RawDraft): Promise<void> {
+  (await cookies()).set(RETRY_COOKIE, JSON.stringify({ v: DRAFT_VERSION, consultationId, fields }), cookieOptions(DAY_SECONDS));
+}
+
+/** The fields typed for `consultationId`, or null when this browser did not start that consultation. */
+export async function readRetryDraft(consultationId: string): Promise<RawDraft | null> {
+  const value = (await cookies()).get(RETRY_COOKIE)?.value;
+  if (!value) return null;
+  try {
+    const parsed = retryCookieSchema.safeParse(JSON.parse(value));
+    return parsed.success && parsed.data.consultationId === consultationId ? (parsed.data.fields as RawDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearRetryDraft(): Promise<void> {
+  (await cookies()).delete(RETRY_COOKIE);
 }
