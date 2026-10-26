@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { getConfig } from '@/src/server/config';
+import { reconcileExpiredConsultations } from '@/src/server/repositories';
 import { MIGRATIONS } from './migrations';
 
 export type Database = DatabaseSync;
@@ -17,6 +18,7 @@ export function openDatabase(location: string): Database {
   db.exec('PRAGMA synchronous = NORMAL');
   db.exec('PRAGMA foreign_keys = ON');
   runMigrations(db);
+  reconcileExpiredConsultations(db, Date.now()); // a restart mid-consultation leaves nothing stuck on "consultando"
   return db;
 }
 

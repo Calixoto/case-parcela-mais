@@ -1,17 +1,54 @@
 import Link from 'next/link';
+import { applyPersona } from '@/app/register/actions';
 import { copy } from '@/src/copy/pt-BR';
+import { SCENARIO_IDS } from '@/src/domain/types';
+
+const PERSONAS = [
+  { id: 'A', label: 'Persona A: 30 anos, renda R$ 5.000, tratamento R$ 15.000' },
+  { id: 'B', label: 'Persona B: 22 anos, renda R$ 1.500, tratamento R$ 25.000' },
+  { id: 'C', label: 'Persona C: 40 anos, renda R$ 3.000, tratamento R$ 45.000' },
+] as const;
 
 export default function HomePage() {
   return (
-    <main className="mx-auto w-full max-w-xl px-4 py-16">
-      <h1 className="font-display text-4xl">{copy.home.title}</h1>
-      <p className="mt-4 text-ink-muted">{copy.home.lead}</p>
-      <Link
-        href="/register/patient"
-        className="mt-8 inline-flex h-12 items-center rounded-control bg-mint px-5 text-enamel"
-      >
-        {copy.home.start}
-      </Link>
+    <main className="mx-auto flex w-full max-w-xl flex-col gap-12 px-4 py-16">
+      <section className="flex flex-col gap-5">
+        <h1 className="font-display text-5xl">{copy.home.title}</h1>
+        <p className="max-w-prose text-lg text-ink-muted">{copy.home.lead}</p>
+        <Link href="/register/patient" className="inline-flex h-12 w-fit items-center rounded-control bg-mint px-5 font-medium text-enamel hover:bg-[#19775f]">
+          {copy.home.start}
+        </Link>
+      </section>
+
+      <section className="flex flex-col gap-4 border-t border-rule pt-8">
+        <h2 className="font-display text-2xl">{copy.home.demoTitle}</h2>
+        <p className="text-ink-muted">{copy.home.demoLead}</p>
+        <form action={applyPersona} className="flex flex-col gap-4">
+          <fieldset className="flex flex-col gap-2">
+            <legend className="sr-only">Pessoa fictícia</legend>
+            {PERSONAS.map((persona, index) => (
+              <label key={persona.id} className="flex items-center gap-3">
+                <input type="radio" name="persona" value={persona.id} defaultChecked={index === 0} className="accent-mint" />
+                <span>{persona.label}</span>
+              </label>
+            ))}
+          </fieldset>
+          <label className="flex flex-col gap-1 text-sm text-ink-muted">
+            {copy.fields.scenario.label}
+            <select name="scenario" className="rounded-control border border-rule bg-enamel px-3 py-2 text-base text-ink">
+              <option value="">{copy.scenarios.natural}</option>
+              {SCENARIO_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {copy.scenarios[id]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit" className="inline-flex h-12 w-fit items-center rounded-control border border-rule px-5 font-medium text-ink hover:border-ink">
+            Abrir demonstração
+          </button>
+        </form>
+      </section>
     </main>
   );
 }

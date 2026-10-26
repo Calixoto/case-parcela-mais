@@ -124,6 +124,14 @@ export const copy = {
     generic: 'Algo deu errado.',
     supportCode: (digest: string) => `Código: ${digest}`,
   },
+  api: {
+    invalidJson: 'Corpo da requisição não é um JSON válido.',
+    validationFailed: 'Dados inválidos. Confira os campos.',
+    notFound: 'Consulta não encontrada.',
+    alreadyChosen: 'Esta consulta já tem uma oferta escolhida.',
+    lenderNotApproved: 'Esta financeira não aprovou nesta consulta.',
+    termNotOffered: 'Prazo não ofertado por esta financeira.',
+  },
   lenders: {
     alfa: 'Alfa',
     beta: 'Beta',
