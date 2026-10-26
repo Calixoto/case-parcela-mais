@@ -2,6 +2,8 @@
 
 import { useActionState, useMemo, type FormEvent } from 'react';
 import { submitFinancingStep, submitPatientStep, type StepFormState } from '@/app/register/actions';
+import { Alert, AlertDescription, AlertTitle } from '@/src/components/ui/alert';
+import { FieldGroup } from '@/src/components/ui/field';
 import { copy } from '@/src/copy/pt-BR';
 import { createPatientStepSchema, financingStepSchema, type RawDraft } from '@/src/domain/registration-schema';
 import { REGISTRATION_STEPS, type StepSlug } from '@/src/domain/registration-steps';
@@ -13,6 +15,9 @@ import { useStepValidation } from '../form/use-step-validation';
 import { ScenarioSelect } from './scenario-select';
 
 const initialStepState: StepFormState = { attempt: 0 };
+
+/** Why the clinic is back on the amount step; the same keys the no-approval panel puts in ?hint=. */
+const hintCopy: Record<Hint, string> = { lower_amount: copy.offers.hintLowerAmount, retry: copy.offers.hintRetry, retry_refused: copy.offers.hintRetryRefused };
 
 type Props = {
   readonly step: StepSlug;
@@ -53,7 +58,7 @@ function StepFormBody({ step, draft, scenario, hint, todayIso, state, formAction
 
   return (
     <form action={formAction} onSubmit={onSubmit} noValidate className="flex flex-col gap-8">
-      <div className="flex flex-col gap-6">
+      <FieldGroup>
         {step === 'patient' ? (
           <>
             <TextField name="fullName" label={copy.fields.fullName.label} placeholder={copy.fields.fullName.placeholder} defaultValue={values.fullName} error={errorFor('fullName')} maxLength={120} autoComplete="name" autoFocus {...shared} />
@@ -64,32 +69,33 @@ function StepFormBody({ step, draft, scenario, hint, todayIso, state, formAction
         ) : (
           <>
             {hint ? (
-              <p role="status" className="rounded-control bg-mint-soft px-4 py-3 text-ink">
-                {hint === 'lower_amount' ? copy.offers.hintLowerAmount : copy.offers.hintRetry}
-              </p>
+              <Alert id="amount-hint" role="status">
+                <AlertDescription>{hintCopy[hint]}</AlertDescription>
+              </Alert>
             ) : null}
             <TextField name="monthlyIncome" label={copy.fields.monthlyIncome.label} placeholder={copy.fields.monthlyIncome.placeholder} defaultValue={values.monthlyIncome} error={errorFor('monthlyIncome')} inputMode="decimal" maxLength={24} autoComplete="off" autoFocus={!hint} {...shared} />
-            <TextField name="treatmentAmount" label={copy.fields.treatmentAmount.label} placeholder={copy.fields.treatmentAmount.placeholder} help={copy.fields.treatmentAmount.help} defaultValue={values.treatmentAmount} error={errorFor('treatmentAmount')} inputMode="decimal" maxLength={24} autoComplete="off" autoFocus={Boolean(hint)} {...shared} />
+            <TextField name="treatmentAmount" label={copy.fields.treatmentAmount.label} placeholder={copy.fields.treatmentAmount.placeholder} help={copy.fields.treatmentAmount.help} defaultValue={values.treatmentAmount} error={errorFor('treatmentAmount')} inputMode="decimal" maxLength={24} autoComplete="off" autoFocus={Boolean(hint)} describedBy={hint ? 'amount-hint' : undefined} {...shared} />
           </>
         )}
-      </div>
+      </FieldGroup>
 
       {/* The scenario is URL state; on step 1 it only travels along to step 2. */}
       {!isFinancing && scenario ? <input type="hidden" name="scenario" value={scenario} /> : null}
       {isFinancing ? <ScenarioSelect /> : null}
 
       {state.formError ? (
-        <p role="alert" className="rounded-control bg-brick-soft px-4 py-3 text-brick">
-          {state.formError}
-        </p>
+        <Alert variant="destructive">
+          <AlertTitle>{state.formError}</AlertTitle>
+        </Alert>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <SubmitButton variant="secondary" name="intent" value="back" formNoValidate pendingLabel={copy.actions.back}>
-          {copy.actions.back}
-        </SubmitButton>
+      {/* "Continuar" comes first in the DOM, so Enter in a field moves forward; the row is reversed to keep "Voltar" on the left. */}
+      <div className="flex flex-row-reverse flex-wrap justify-end gap-3">
         <SubmitButton name="intent" value="next" pendingLabel={isFinancing ? copy.actions.consulting : copy.actions.sending}>
           {isFinancing ? copy.actions.consult : copy.actions.continue}
+        </SubmitButton>
+        <SubmitButton variant="secondary" name="intent" value="back" formNoValidate pendingLabel={copy.actions.back}>
+          {copy.actions.back}
         </SubmitButton>
       </div>
     </form>

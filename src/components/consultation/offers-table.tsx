@@ -4,6 +4,13 @@ import { useQueryState } from 'nuqs';
 import { useActionState, useMemo } from 'react';
 import { useFormStatus } from 'react-dom';
 import { chooseOfferAction, type ChooseOfferState } from '@/app/consultations/actions';
+import { Alert, AlertTitle } from '@/src/components/ui/alert';
+import { Badge } from '@/src/components/ui/badge';
+import { Button } from '@/src/components/ui/button';
+import { Empty, EmptyDescription, EmptyHeader } from '@/src/components/ui/empty';
+import { Spinner } from '@/src/components/ui/spinner';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/src/components/ui/table';
+import { ToggleGroup, ToggleGroupItem } from '@/src/components/ui/toggle-group';
 import { copy } from '@/src/copy/pt-BR';
 import { formatBRL } from '@/src/domain/money';
 import { sortOffers } from '@/src/domain/sorting';
@@ -21,9 +28,6 @@ const initialChooseState: ChooseOfferState = { attempt: 0 };
 
 const sortLabels: Record<SortCriterion, string> = { installment: copy.offers.sortInstallment, total: copy.offers.sortTotal };
 
-/** Desktop: one ledger line per lender × term. Mobile: the same line folded in two (amounts, then details). */
-const ROW_GRID = 'md:grid md:grid-cols-[4rem_8.5rem_9rem_1fr_auto] md:items-center md:gap-x-4';
-
 /** Offers sorted on the client from URL state (`?sort=`); the amounts were computed on the server. */
 export function OffersTable({ consultationId, offers, choice, querying }: Props) {
   const [sort, setSort] = useQueryState('sort', sortParser);
@@ -32,86 +36,106 @@ export function OffersTable({ consultationId, offers, choice, querying }: Props)
 
   return (
     <section className="flex flex-col gap-4" aria-labelledby="offers-title">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 id="offers-title" className="font-display text-2xl">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="offers-title" className="text-lg font-medium">
           {copy.offers.title(offers.length)}
         </h2>
-        <fieldset className="flex flex-wrap items-center gap-2 text-sm">
-          <legend className="sr-only">{copy.offers.sortBy}</legend>
-          <span className="text-ink-muted">{copy.offers.sortBy}</span>
-          {SORT_CRITERIA.map((criterion) => (
-            <label
-              key={criterion}
-              className={`cursor-pointer rounded-control border px-3 py-1 ${sort === criterion ? 'border-ink bg-enamel text-ink' : 'border-rule text-ink-muted'}`}
-            >
-              <input type="radio" name="sort" value={criterion} checked={sort === criterion} onChange={() => void setSort(criterion)} className="sr-only" />
-              {sortLabels[criterion]}
-            </label>
-          ))}
-        </fieldset>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">{copy.offers.sortBy}</span>
+          <ToggleGroup
+            variant="outline"
+            value={[sort]}
+            // Re-clicking the pressed option yields []: ignore it, so one criterion is always selected.
+            onValueChange={([next]) => {
+              const criterion = SORT_CRITERIA.find((candidate) => candidate === next);
+              if (criterion) void setSort(criterion);
+            }}
+            aria-label={copy.offers.sortBy}
+          >
+            {SORT_CRITERIA.map((criterion) => (
+              <ToggleGroupItem key={criterion} value={criterion}>
+                {sortLabels[criterion]}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
       </div>
 
-      {querying ? <p className="text-sm text-ink-muted">{copy.consultation.inProgress}</p> : null}
-      {offers.length === 0 ? <p className="text-ink-muted">{copy.offers.waiting}</p> : null}
+      {querying ? <p className="text-sm text-muted-foreground">{copy.consultation.inProgress}</p> : null}
 
-      {offers.length > 0 ? (
-        <form action={formAction}>
+      {offers.length === 0 ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyDescription>{copy.offers.waiting}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <form action={formAction} className="flex flex-col gap-3">
           <input type="hidden" name="consultationId" value={consultationId} />
-          <div aria-hidden className={`hidden border-b border-rule pb-2 text-sm text-ink-muted ${ROW_GRID}`}>
-            <span>{copy.offers.columns.term}</span>
-            <span>{copy.offers.columns.installment}</span>
-            <span>{copy.offers.columns.total}</span>
-            <span>{copy.offers.columns.lender}</span>
-            <span />
-          </div>
-          <ul aria-label={copy.offers.listLabel} className="divide-y divide-rule border-b border-rule">
-            {sorted.map((offer) => {
-              const value = `${offer.lenderId}:${offer.termMonths}`;
-              const chosen = choice !== null && choice.lenderId === offer.lenderId && choice.termMonths === offer.termMonths;
-              return (
-                <li key={value} className={`flex items-start justify-between gap-3 py-3 ${ROW_GRID} ${chosen ? 'bg-mint-soft' : ''}`}>
-                  <div className="flex flex-col gap-0.5 md:contents">
-                    <div className="flex items-baseline gap-3 md:contents">
-                      <span className="font-display text-2xl">{copy.offers.termTimes(offer.termMonths)}</span>
-                      <span className="font-display text-2xl">{formatBRL(offer.installmentCents)}</span>
-                    </div>
-                    <span className="text-sm text-ink-muted md:text-base">{copy.offers.total(formatBRL(offer.totalCents))}</span>
-                    <span className="text-sm md:text-base">
-                      <span className="md:block">{offer.lenderName}</span>
-                      <span className={`md:block ${offer.isPartial ? 'text-amber' : 'text-ink-muted'}`}>
-                        {' '}
-                        {offer.isPartial ? copy.offers.coveragePartial(offer.coveragePercent, formatBRL(offer.uncoveredCents)) : copy.offers.coverageFull}
-                      </span>
-                    </span>
-                  </div>
-                  <ChooseButton value={value} disabled={choice !== null} />
-                </li>
-              );
-            })}
-          </ul>
+          <Table>
+            <TableCaption className="sr-only">{copy.offers.listLabel}</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{copy.offers.columns.term}</TableHead>
+                <TableHead>{copy.offers.columns.installment}</TableHead>
+                <TableHead>{copy.offers.columns.total}</TableHead>
+                <TableHead>{copy.offers.columns.lender}</TableHead>
+                <TableHead className="sr-only">{copy.offers.columns.action}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.map((offer) => {
+                const value = `${offer.lenderId}:${offer.termMonths}`;
+                const chosen = choice !== null && choice.lenderId === offer.lenderId && choice.termMonths === offer.termMonths;
+                return (
+                  <TableRow key={value} data-state={chosen ? 'selected' : undefined}>
+                    <TableCell className="font-medium tabular-nums">{copy.offers.termTimes(offer.termMonths)}</TableCell>
+                    <TableCell className="font-medium tabular-nums">{formatBRL(offer.installmentCents)}</TableCell>
+                    <TableCell className="tabular-nums">{formatBRL(offer.totalCents)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col items-start gap-1">
+                        <span>{offer.lenderName}</span>
+                        {offer.isPartial ? (
+                          <Badge variant="outline">{copy.offers.coveragePartial(offer.coveragePercent, formatBRL(offer.uncoveredCents))}</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{copy.offers.coverageFull}</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {chosen ? <Badge>{copy.offers.chosen}</Badge> : <ChooseButton value={value} context={copy.offers.chooseContext(offer.lenderName, offer.termMonths, formatBRL(offer.installmentCents))} disabled={choice !== null} />}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
           {state.error ? (
-            <p role="alert" className="mt-3 rounded-control bg-brick-soft px-4 py-3 text-brick">
-              {state.error}
-            </p>
+            <Alert variant="destructive">
+              <AlertTitle>{state.error}</AlertTitle>
+            </Alert>
           ) : null}
         </form>
-      ) : null}
+      )}
     </section>
   );
 }
 
-function ChooseButton({ value, disabled }: { readonly value: string; readonly disabled: boolean }) {
+/** `context` names the offer for assistive technology ("Escolher Beta, 24 parcelas de R$ 475,30"): twelve buttons would otherwise sound alike. */
+function ChooseButton({ value, context, disabled }: { readonly value: string; readonly context: string; readonly disabled: boolean }) {
   const { pending, data } = useFormStatus();
   const mine = pending && data?.get('offer') === value;
   return (
-    <button
-      type="submit"
-      name="offer"
-      value={value}
-      disabled={disabled || pending}
-      className="inline-flex h-10 shrink-0 items-center rounded-control bg-mint px-4 text-sm font-medium text-enamel disabled:opacity-50"
-    >
-      {mine ? copy.actions.choosing : copy.actions.choose}
-    </button>
+    <Button type="submit" size="sm" name="offer" value={value} disabled={disabled || pending}>
+      {mine ? (
+        <>
+          <Spinner aria-hidden />
+          {copy.actions.choosing}
+        </>
+      ) : (
+        copy.actions.choose
+      )}
+      <span className="sr-only"> {context}</span>
+    </Button>
   );
 }

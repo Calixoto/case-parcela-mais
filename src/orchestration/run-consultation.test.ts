@@ -113,6 +113,22 @@ describe('runConsultation', () => {
     expect(snapshot(id)).toMatchObject({ offers: [], summary: { refusedCount: 4, outcome: 'none_approved', nextStep: 'retry' } });
   });
 
+  it('none_approve keeps real refusals: persona B is refused by income and age, so the next step is a lower amount', async () => {
+    const { id, run } = start(personaB, 'none_approve');
+    await vi.advanceTimersByTimeAsync(1_500);
+    await run;
+    expect(statuses(id)).toEqual({ alfa: 'refused:income_insufficient', beta: 'refused:forced', gama: 'refused:age_below_min', delta: 'refused:forced' });
+    expect(snapshot(id)).toMatchObject({ offers: [], summary: { refusedCount: 4, outcome: 'none_approved', nextStep: 'lower_amount' } });
+  });
+
+  it('all_approve does not depend on the typed data: persona B gets four approvals (Beta at 60%)', async () => {
+    const { id, run } = start(personaB, 'all_approve');
+    await vi.advanceTimersByTimeAsync(2_000);
+    await run;
+    expect(statuses(id)).toEqual({ alfa: 'approved:', beta: 'approved:', gama: 'approved:', delta: 'approved:' });
+    expect(snapshot(id).offers).toHaveLength(12);
+  });
+
   it.each([
     ['all_approve', 12],
     ['delta_error', 9],

@@ -4,7 +4,6 @@ import { createConsultationInputSchema, fieldErrorsOf } from '@/src/domain/regis
 import { copy } from '@/src/copy/pt-BR';
 import { getDb } from '@/src/db/client';
 import { LENDERS } from '@/src/lenders/registry';
-import { parseOverrides } from '@/src/lenders/scenarios';
 import { getConfig } from '@/src/server/config';
 import { createConsultation } from '@/src/server/consultations.service';
 import { apiError, json } from '@/src/server/http';
@@ -27,13 +26,6 @@ export async function POST(request: Request) {
   const parsed = createConsultationInputSchema(today).safeParse(payload);
   if (!parsed.success) return apiError('validation_failed', copy.api.validationFailed, 422, fieldErrorsOf(parsed.error));
 
-  let overrides;
-  try {
-    overrides = parseOverrides(parsed.data.overrides);
-  } catch {
-    return apiError('validation_failed', copy.api.invalidOverrides, 422);
-  }
-
   let created: { id: string; deadlineAt: number };
   try {
     created = createConsultation(
@@ -45,6 +37,6 @@ export async function POST(request: Request) {
     console.error(JSON.stringify({ event: 'consultation_create_failed', error: error instanceof Error ? error.message : String(error) }));
     return apiError('internal_error', copy.api.internalError, 500);
   }
-  after(() => startConsultationRun(created.id, overrides));
+  after(() => startConsultationRun(created.id));
   return json({ consultationId: created.id, deadlineAt: created.deadlineAt }, 201);
 }

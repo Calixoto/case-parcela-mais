@@ -172,8 +172,8 @@ export function createRegistrationSchema(todayIso: string) {
 
 /**
  * Body of `POST /api/consultations` (docs/07 §4.6): the same patient rules as the form, money already
- * in integer cents, an optional forced scenario and an opaque `overrides` passed through to the lender
- * adapters. Unknown keys are dropped (zod default).
+ * in integer cents and an optional forced scenario, one of the four of the case. Unknown keys are
+ * dropped (zod default), so there is no per-lender knob on the public contract.
  */
 export function createConsultationInputSchema(todayIso: string) {
   return z.object({
@@ -183,7 +183,6 @@ export function createConsultationInputSchema(todayIso: string) {
     ),
     treatmentAmountCents: centsField(isWithinTreatmentLimits, copy.errors.treatmentAmount),
     scenario: z.enum(SCENARIO_IDS, { error: copy.errors.scenario }).nullish(),
-    overrides: z.unknown().optional(),
   });
 }
 

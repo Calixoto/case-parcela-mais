@@ -22,6 +22,10 @@ export type OrchestrationDeps = {
  * The deadline is the one persisted at creation (measured on the server), so a restart or a slow
  * start never extends it. The database is the arbiter: an answer that arrives after the close finds
  * its row already terminal (0 rows updated) and is logged as ignored instead of overwriting a timeout.
+ *
+ * `overrides` is a test seam: it stacks per-lender behaviours on top of the persisted scenario, so the
+ * tests can make several lenders fail or time out at once. Production never passes it; the scenario
+ * forced on the form travels in the consultation row.
  */
 export async function runConsultation(consultationId: string, deps: OrchestrationDeps, overrides?: Overrides): Promise<void> {
   const consultation = getConsultation(deps.db, consultationId);

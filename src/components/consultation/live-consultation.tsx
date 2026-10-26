@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '@/src/components/ui/alert';
+import { Button } from '@/src/components/ui/button';
+import { Separator } from '@/src/components/ui/separator';
 import { copy } from '@/src/copy/pt-BR';
+import { todayIso } from '@/src/domain/age';
 import { formatBRL } from '@/src/domain/money';
 import type { ConsultationSnapshot } from '@/src/domain/types';
-import { formatTime } from '../format';
-import { DeadlineRail } from './deadline-rail';
+import { formatDate, formatTime } from '../format';
 import { LenderBoard } from './lender-board';
 import { NoApprovalPanel } from './no-approval-panel';
 import { OffersTable } from './offers-table';
@@ -17,47 +20,54 @@ type Props = { readonly initial: ConsultationSnapshot; readonly timeZone: string
 export function LiveConsultation({ initial, timeZone }: Props) {
   const { snapshot, stalled, retry } = useConsultationSnapshot(initial);
   const querying = snapshot.status === 'querying';
+  // "hoje" only when it is: the page is a permalink ("Retomar consulta"). Server clock on both sides, so the HTML never mismatches.
+  const sameDay = todayIso(timeZone, new Date(snapshot.startedAt)) === todayIso(timeZone, new Date(snapshot.serverNow));
+  const startedLine = sameDay
+    ? copy.consultation.startedAt(formatTime(snapshot.startedAt, timeZone))
+    : copy.consultation.startedOn(formatDate(snapshot.startedAt, timeZone), formatTime(snapshot.startedAt, timeZone));
+  const finishedLine = querying
+    ? ''
+    : `${copy.consultation.finished}. ${snapshot.summary.outcome === 'none_approved' ? copy.offers.noneTitle : copy.offers.title(snapshot.offers.length)}.`;
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <h1 className="font-display text-3xl">{snapshot.patient.fullName}</h1>
-          <p className="text-sm text-ink-muted">{copy.consultation.startedAt(formatTime(snapshot.startedAt, timeZone))}</p>
+      <header className="flex flex-wrap items-end justify-between gap-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">{snapshot.patient.fullName}</h1>
+          <p className="text-sm text-muted-foreground">{startedLine}</p>
         </div>
-        <p className="text-ink-muted">
-          {copy.consultation.treatment} <span className="font-display text-xl text-ink">{formatBRL(snapshot.treatmentAmountCents)}</span>
+        <p className="text-sm text-muted-foreground">
+          {copy.consultation.treatment} <span className="font-medium text-foreground tabular-nums">{formatBRL(snapshot.treatmentAmountCents)}</span>
         </p>
       </header>
 
-      <DeadlineRail
-        status={snapshot.status}
-        startedAt={snapshot.startedAt}
-        deadlineAt={snapshot.deadlineAt}
-        finishedAt={snapshot.finishedAt}
-        finishReason={snapshot.finishReason}
-        serverNow={snapshot.serverNow}
-        timeoutMs={snapshot.timeoutMs}
-      />
+      <Separator />
+
+      {/* Always in the DOM, so the end of the consultation is announced to screen readers. */}
+      <p role="status" className="sr-only">
+        {finishedLine}
+      </p>
 
       {stalled ? (
-        <p role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-control bg-brick-soft px-4 py-3 text-brick">
-          {copy.errors.pollFailed}
-          <button type="button" onClick={retry} className="rounded-control border border-brick px-3 py-1 text-sm">
-            {copy.actions.retry}
-          </button>
-        </p>
+        <Alert variant="destructive">
+          <AlertTitle>{copy.errors.pollFailed}</AlertTitle>
+          <AlertDescription>
+            <Button size="sm" variant="outline" onClick={retry}>
+              {copy.actions.retry}
+            </Button>
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       <LenderBoard lenders={snapshot.lenders} treatmentAmountCents={snapshot.treatmentAmountCents} timeoutMs={snapshot.timeoutMs} />
 
       {snapshot.choice ? (
-        <p role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-control bg-mint-soft px-4 py-3">
-          {copy.consultation.chosenBanner}
-          <Link href={`/consultations/${snapshot.id}/confirmation`} className="font-medium text-mint underline">
-            {copy.actions.seeConfirmation}
-          </Link>
-        </p>
+        <Alert role="status">
+          <AlertTitle>{copy.consultation.chosenBanner}</AlertTitle>
+          <AlertDescription>
+            <Link href={`/consultations/${snapshot.id}/confirmation`}>{copy.actions.seeConfirmation}</Link>
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       {snapshot.summary.outcome === 'none_approved' ? (

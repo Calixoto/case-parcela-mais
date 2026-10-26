@@ -2,6 +2,8 @@
 
 import type { ReactNode } from 'react';
 import { useFormStatus } from 'react-dom';
+import { Button } from '@/src/components/ui/button';
+import { Spinner } from '@/src/components/ui/spinner';
 
 type Props = {
   readonly children: ReactNode;
@@ -12,24 +14,23 @@ type Props = {
   readonly formNoValidate?: boolean;
 };
 
-const styles = {
-  primary: 'bg-mint text-enamel hover:bg-[#19775f]',
-  secondary: 'border border-rule bg-transparent text-ink hover:border-ink',
-} as const;
+const variants = { primary: 'default', secondary: 'outline' } as const;
 
 /** Must be rendered inside the <form>: useFormStatus reads the pending state of the parent form. */
 export function SubmitButton({ children, pendingLabel, variant = 'primary', name, value, formNoValidate }: Props) {
-  const { pending } = useFormStatus();
+  const { pending, data } = useFormStatus();
+  // Every submit button locks while the form is in flight; only the one that was pressed shows the pending state.
+  const pressed = name === undefined || data?.get(name) === (value ?? '');
   return (
-    <button
-      type="submit"
-      name={name}
-      value={value}
-      formNoValidate={formNoValidate}
-      disabled={pending}
-      className={`inline-flex h-12 items-center justify-center rounded-control px-5 font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${styles[variant]}`}
-    >
-      {pending ? pendingLabel : children}
-    </button>
+    <Button type="submit" variant={variants[variant]} name={name} value={value} formNoValidate={formNoValidate} disabled={pending}>
+      {pending && pressed ? (
+        <>
+          <Spinner aria-hidden="true" />
+          {pendingLabel}
+        </>
+      ) : (
+        children
+      )}
+    </Button>
   );
 }

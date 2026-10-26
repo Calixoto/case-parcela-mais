@@ -28,13 +28,13 @@ const PERSONA_A: Required<RawDraft> = {
 const PERSONA_A_PATIENT = { fullName: 'Maria da Silva', cpf: '52998224725', birthDate: '1996-03-15', phone: '11912345678' };
 const PERSONA_A_FINANCING = { monthlyIncomeCents: 500000, treatmentAmountCents: 1500000 };
 
-function patientErrors(overrides: RawDraft): FieldErrors {
-  const result = createPatientStepSchema(TODAY).safeParse({ ...PERSONA_A, ...overrides });
+function patientErrors(patch: RawDraft): FieldErrors {
+  const result = createPatientStepSchema(TODAY).safeParse({ ...PERSONA_A, ...patch });
   return result.success ? {} : fieldErrorsOf(result.error);
 }
 
-function financingErrors(overrides: RawDraft): FieldErrors {
-  const result = financingStepSchema.safeParse({ ...PERSONA_A, ...overrides });
+function financingErrors(patch: RawDraft): FieldErrors {
+  const result = financingStepSchema.safeParse({ ...PERSONA_A, ...patch });
   return result.success ? {} : fieldErrorsOf(result.error);
 }
 
@@ -290,7 +290,6 @@ describe('createConsultationInputSchema (POST /api/consultations)', () => {
     },
     treatmentAmountCents: 1500000,
     scenario: 'all_approve',
-    overrides: { delta: { outcome: 'timeout' } },
   };
 
   function apiErrors(body: unknown): FieldErrors {
@@ -298,21 +297,26 @@ describe('createConsultationInputSchema (POST /api/consultations)', () => {
     return result.success ? {} : fieldErrorsOf(result.error);
   }
 
-  it('accepts a full body, normalizes the patient and passes scenario and overrides through', () => {
+  it('accepts a full body, normalizes the patient and passes the scenario through', () => {
     expect(createConsultationInputSchema(TODAY).parse(VALID_BODY)).toEqual({
       patient: { ...PERSONA_A_PATIENT, monthlyIncomeCents: 500000 },
       treatmentAmountCents: 1500000,
       scenario: 'all_approve',
-      overrides: { delta: { outcome: 'timeout' } },
     });
   });
 
-  it('accepts a body without scenario or overrides, and drops unknown keys', () => {
+  it('accepts a body without scenario and drops unknown keys', () => {
     const body = { patient: VALID_BODY.patient, treatmentAmountCents: VALID_BODY.treatmentAmountCents, extra: true };
     const parsed = createConsultationInputSchema(TODAY).parse(body);
     expect(parsed.scenario).toBeUndefined();
-    expect(parsed.overrides).toBeUndefined();
     expect(parsed).not.toHaveProperty('extra');
+  });
+
+  it('strips a per-lender overrides key like any other unknown key: only the four scenarios can be forced', () => {
+    const body = { ...VALID_BODY, overrides: { delta: { outcome: 'timeout', delayMs: 12_000 } } };
+    const parsed = createConsultationInputSchema(TODAY).parse(body);
+    expect(parsed).not.toHaveProperty('overrides');
+    expect(parsed.scenario).toBe('all_approve');
   });
 
   it('also accepts the birth date in pt-BR format', () => {

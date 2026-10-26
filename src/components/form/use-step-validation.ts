@@ -79,7 +79,8 @@ export function useStepValidation(schema: z.ZodType, fields: readonly string[], 
         const result = schema.safeParse(raw);
         const errors = result.success ? {} : fieldErrorsOf(result.error);
         const first = fields.find((field) => errors[field]?.length);
-        if (first) (form.elements.namedItem(first) as HTMLInputElement | null)?.focus();
+        // Next frame: a Base UI button focuses itself after its click handlers, which would steal the focus back.
+        if (first) requestAnimationFrame(() => (form.elements.namedItem(first) as HTMLInputElement | null)?.focus());
       }
       return valid;
     },

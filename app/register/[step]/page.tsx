@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { StepForm } from '@/src/components/register/step-form';
 import { StepRail } from '@/src/components/register/step-rail';
+import { Skeleton } from '@/src/components/ui/skeleton';
 import { copy } from '@/src/copy/pt-BR';
 import { todayIso } from '@/src/domain/age';
 import { isStepSlug, REGISTRATION_STEPS, type StepSlug } from '@/src/domain/registration-steps';
@@ -50,26 +51,44 @@ async function StepContent({ params, searchParams }: Pick<PageProps<'/register/[
     <div className="flex flex-col gap-8">
       <StepRail current={step} />
       <header className="flex flex-col gap-2">
-        <h1 className="font-display text-4xl">{copy.steps[step].title}</h1>
-        <p className="text-ink-muted">{copy.steps[step].lead}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{copy.steps[step].title}</h1>
+        <p className="text-muted-foreground">{copy.steps[step].lead}</p>
       </header>
       <StepForm step={step} draft={draft} scenario={scenario} hint={hint} todayIso={todayIso(getConfig().timeZone)} />
     </div>
   );
 }
 
-/** Same geometry as the real content, so the reveal does not shift the layout. */
+/** Same geometry as the real content (rail, header, four fields, two buttons), so the reveal does not shift the layout. */
 function StepSkeleton() {
   return (
-    <div aria-hidden className="flex animate-pulse flex-col gap-8">
-      <div className="h-12 border-b border-rule" />
-      <div className="h-10 w-2/3 rounded-control bg-slate-soft" />
-      <div className="flex flex-col gap-6">
+    <div aria-hidden className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-1 w-full rounded-full" />
+        </div>
+        <div className="flex gap-6">
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="h-5 w-36" />
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-6 w-1/2" />
+      </div>
+      <div className="flex flex-col gap-5">
         {[0, 1, 2, 3].map((item) => (
-          <div key={item} className="h-14 border-b border-rule" />
+          <div key={item} className="flex flex-col gap-2">
+            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-8 w-full" />
+          </div>
         ))}
       </div>
-      <div className="h-12 w-48 rounded-control bg-slate-soft" />
+      <div className="flex gap-3">
+        <Skeleton className="h-8 w-20" />
+        <Skeleton className="h-8 w-32" />
+      </div>
     </div>
   );
 }

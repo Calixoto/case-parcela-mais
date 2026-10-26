@@ -1,15 +1,25 @@
 import { startNewSimulation } from '@/app/register/actions';
+import { Button } from '@/src/components/ui/button';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/src/components/ui/empty';
 import { copy } from '@/src/copy/pt-BR';
 
 export default function ConsultationNotFound() {
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-16">
-      <h1 className="font-display text-3xl">{copy.consultation.notFound}</h1>
-      <form action={startNewSimulation}>
-        <button type="submit" className="inline-flex h-12 w-fit items-center rounded-control bg-mint px-5 font-medium text-enamel">
-          {copy.actions.newSimulation}
-        </button>
-      </form>
+    <main className="mx-auto w-full max-w-xl px-4 py-10 md:py-16">
+      <Empty>
+        <EmptyHeader>
+          {/* EmptyTitle renders a div; the h1 keeps the page heading. */}
+          <EmptyTitle className="text-2xl font-semibold tracking-tight">
+            <h1>{copy.consultation.notFound}</h1>
+          </EmptyTitle>
+          <EmptyDescription>{copy.errors.pageNotFoundLead}</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <form action={startNewSimulation}>
+            <Button type="submit">{copy.actions.newSimulation}</Button>
+          </form>
+        </EmptyContent>
+      </Empty>
     </main>
   );
 }

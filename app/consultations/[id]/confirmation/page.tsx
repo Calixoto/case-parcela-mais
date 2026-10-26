@@ -3,8 +3,12 @@ import { io } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { startNewSimulation } from '@/app/register/actions';
-import { copy } from '@/src/copy/pt-BR';
 import { formatRatePercent } from '@/src/components/format';
+import { Alert, AlertTitle } from '@/src/components/ui/alert';
+import { Button } from '@/src/components/ui/button';
+import { Card, CardContent } from '@/src/components/ui/card';
+import { Skeleton } from '@/src/components/ui/skeleton';
+import { copy } from '@/src/copy/pt-BR';
 import { formatBRL, percentCovered } from '@/src/domain/money';
 import { readConsultationSnapshot } from '@/src/server/snapshot';
 
@@ -13,7 +17,17 @@ export const metadata: Metadata = { title: copy.confirmation.title };
 export default function ConfirmationPage({ params }: PageProps<'/consultations/[id]/confirmation'>) {
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-10 md:py-16">
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-control bg-slate-soft" />}>
+      <Suspense
+        fallback={
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-8 w-2/3" />
+              <Skeleton className="h-6 w-1/2" />
+            </div>
+            <Skeleton className="h-80 rounded-xl" />
+          </div>
+        }
+      >
         <ConfirmationContent params={params} />
       </Suspense>
     </main>
@@ -42,26 +56,32 @@ async function ConfirmationContent({ params }: Pick<PageProps<'/consultations/[i
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-2">
-        <h1 className="font-display text-4xl">{copy.confirmation.title}</h1>
-        <p className="text-ink-muted">{copy.confirmation.lead}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{copy.confirmation.title}</h1>
+        <p className="text-muted-foreground">{copy.confirmation.lead}</p>
       </header>
-      <dl className="divide-y divide-rule border-y border-rule">
-        {rows.map(([label, value]) => (
-          <div key={label} className="grid grid-cols-[10rem_1fr] gap-4 py-3">
-            <dt className="text-sm text-ink-muted">{label}</dt>
-            <dd className="font-display text-xl">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <Card>
+        <CardContent>
+          <dl className="divide-y">
+            {rows.map(([label, value]) => (
+              <div key={label} className="grid gap-1 py-3 sm:grid-cols-[10rem_1fr] sm:gap-4">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="font-medium tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </CardContent>
+      </Card>
       {partial ? (
-        <p role="status" className="rounded-control bg-amber-soft px-4 py-3 text-amber">
-          {copy.offers.coveragePartial(percentCovered(choice.financedAmountCents, treatmentAmountCents), formatBRL(treatmentAmountCents - choice.financedAmountCents))}
-        </p>
+        <Alert role="status">
+          <AlertTitle>
+            {copy.offers.coveragePartial(percentCovered(choice.financedAmountCents, treatmentAmountCents), formatBRL(treatmentAmountCents - choice.financedAmountCents))}
+          </AlertTitle>
+        </Alert>
       ) : null}
       <form action={startNewSimulation}>
-        <button type="submit" className="inline-flex h-12 items-center rounded-control border border-rule px-5 font-medium text-ink hover:border-ink">
+        <Button type="submit" variant="outline">
           {copy.actions.newSimulation}
-        </button>
+        </Button>
       </form>
     </div>
   );

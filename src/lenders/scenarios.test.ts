@@ -22,9 +22,14 @@ describe('scenario presets', () => {
     }
   });
 
-  it('delta_error only touches Delta; all_approve makes Delta a fast approval', () => {
+  it('delta_error only touches Delta; all_approve forces Alfa, Gama and Delta and leaves Beta (always approves) to its rule', () => {
     expect(presetOverrides('delta_error', 10_000)).toEqual({ delta: { outcome: 'error', delayMs: 1_000 } });
-    expect(presetOverrides('all_approve', 10_000).delta).toEqual({ outcome: 'approve', delayMs: 2_000 });
+    expect(presetOverrides('all_approve', 10_000)).toEqual({
+      alfa: { outcome: 'approve', delayMs: 500 },
+      beta: { outcome: 'natural', delayMs: 1_000 },
+      gama: { outcome: 'approve', delayMs: 1_000 },
+      delta: { outcome: 'approve', delayMs: 2_000 },
+    });
   });
 
   it('explicit per-lender overrides win over the preset', () => {

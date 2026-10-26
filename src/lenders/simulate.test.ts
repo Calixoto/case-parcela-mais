@@ -58,12 +58,23 @@ describe('simulateLender', () => {
 
   it.each([
     ['approve', { outcome: 'approved', approvedAmountCents: 1_500_000 }],
-    ['refuse', { outcome: 'refused', reasonCode: 'forced' }],
     ['timeout', { outcome: 'approved', approvedAmountCents: 1_500_000 }],
   ] as const)('override %s replaces the rule and the delay', async (outcome, decision) => {
     const quote = simulateLender(alfa, { ...input, monthlyIncomeCents: 1 }, context(sequence([0.5, 0.5]), { outcome, delayMs: 250 }));
     await vi.advanceTimersByTimeAsync(250);
     await expect(quote).resolves.toMatchObject({ decision, delayMs: 250 });
+  });
+
+  it('override refuse keeps a real refusal with its reason, so "try a lower amount" stays reachable', async () => {
+    const quote = simulateLender(alfa, { ...input, monthlyIncomeCents: 1 }, context(sequence([0.5, 0.5]), { outcome: 'refuse', delayMs: 250 }));
+    await vi.advanceTimersByTimeAsync(250);
+    await expect(quote).resolves.toMatchObject({ decision: { outcome: 'refused', reasonCode: 'income_insufficient' }, delayMs: 250 });
+  });
+
+  it('override refuse turns an approval into a forced refusal', async () => {
+    const quote = simulateLender(alfa, input, context(sequence([0.5, 0.5]), { outcome: 'refuse', delayMs: 250 }));
+    await vi.advanceTimersByTimeAsync(250);
+    await expect(quote).resolves.toMatchObject({ decision: { outcome: 'refused', reasonCode: 'forced' }, delayMs: 250 });
   });
 
   it('override error rejects with HTTP 500 after its delay', async () => {

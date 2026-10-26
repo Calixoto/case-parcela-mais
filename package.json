@@ -13,6 +13,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@base-ui/react": "^1.9.0",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.5.0",
+    "geist": "^1.8.2",
+    "lucide-react": "^1.61.0",
     "next": "16.4.3",
     "nuqs": "^2.10.2",
     "react": "19.3.0",
@@ -26,6 +31,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "shadcn": "^4.22.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vite": "^8.3.5",

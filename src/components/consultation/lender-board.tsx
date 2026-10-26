@@ -1,24 +1,26 @@
+import type { ComponentProps } from 'react';
+import { Badge } from '@/src/components/ui/badge';
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/src/components/ui/item';
+import { Spinner } from '@/src/components/ui/spinner';
 import { copy } from '@/src/copy/pt-BR';
 import { formatBRL, percentCovered } from '@/src/domain/money';
 import type { LenderResult, LenderStatus } from '@/src/domain/types';
 import { formatRatePercent, formatSeconds } from '../format';
 
-const badge: Record<LenderStatus, { readonly glyph: string; readonly className: string }> = {
-  querying: { glyph: '●', className: 'bg-amber-soft text-amber' },
-  approved: { glyph: '✓', className: 'bg-mint-soft text-mint' },
-  refused: { glyph: '—', className: 'bg-brick-soft text-brick' },
-  unavailable: { glyph: '◷', className: 'bg-slate-soft text-slate' },
+/** One Badge variant per status, shared by every screen that shows a lender. */
+const badgeVariant: Record<LenderStatus, ComponentProps<typeof Badge>['variant']> = {
+  querying: 'secondary',
+  approved: 'default',
+  refused: 'destructive',
+  unavailable: 'outline',
 };
 
 export function StatusBadge({ status }: { readonly status: LenderStatus }) {
-  const { glyph, className } = badge[status];
   return (
-    <span className={`inline-flex items-center gap-2 rounded-control px-2 py-1 text-sm font-medium ${className}`}>
-      <span aria-hidden className={status === 'querying' ? 'animate-pulse' : undefined}>
-        {glyph}
-      </span>
+    <Badge variant={badgeVariant[status]}>
+      {status === 'querying' ? <Spinner aria-hidden /> : null}
       {copy.status[status]}
-    </span>
+    </Badge>
   );
 }
 
@@ -37,33 +39,45 @@ function detail(lender: LenderResult, treatmentAmountCents: number, timeoutMs: n
   return copy.reasons.fallback;
 }
 
+type BoardProps = { readonly lenders: readonly LenderResult[]; readonly treatmentAmountCents: number; readonly timeoutMs: number };
+
 /** One row per lender, in registry order, updated by lender id (never by position). */
-export function LenderBoard({ lenders, treatmentAmountCents, timeoutMs }: { readonly lenders: readonly LenderResult[]; readonly treatmentAmountCents: number; readonly timeoutMs: number }) {
+export function LenderBoard({ lenders, treatmentAmountCents, timeoutMs }: BoardProps) {
   return (
-    <ul aria-live="polite" aria-label={copy.consultation.boardLabel} className="divide-y divide-rule border-y border-rule">
-      {lenders.map((lender) => (
-        <li key={lender.lenderId} className="grid grid-cols-[6rem_1fr_auto] items-center gap-x-4 gap-y-1 py-4 md:grid-cols-[8rem_9rem_1fr_4rem]">
-          <span className="font-display text-2xl md:text-3xl">{lender.lenderName}</span>
-          <StatusBadge status={lender.status} />
-          <span className="col-span-3 text-sm text-ink-muted md:col-span-1 md:text-base">{detail(lender, treatmentAmountCents, timeoutMs)}</span>
-          <span className="hidden text-right text-sm text-ink-muted md:block">{lender.latencyMs !== null ? copy.consultation.latency(formatSeconds(lender.latencyMs)) : ''}</span>
-        </li>
-      ))}
-    </ul>
+    <ItemGroup aria-label={copy.consultation.boardLabel}>
+      {lenders.map((lender) => {
+        const text = detail(lender, treatmentAmountCents, timeoutMs);
+        return (
+          // Each row is its own atomic live region: an update reads the whole row (name, detail, status), not loose fragments.
+          <Item key={lender.lenderId} role="listitem" variant="outline" aria-live="polite" aria-atomic="true">
+            <ItemContent>
+              <ItemTitle>{lender.lenderName}</ItemTitle>
+              {text ? <ItemDescription>{text}</ItemDescription> : null}
+            </ItemContent>
+            <ItemActions>
+              <StatusBadge status={lender.status} />
+            </ItemActions>
+          </Item>
+        );
+      })}
+    </ItemGroup>
   );
 }
 
 /** Four rows already "Consultando" in the static shell: the 4 statuses exist from the first frame. */
 export function LenderBoardSkeleton({ names }: { readonly names: readonly string[] }) {
   return (
-    <ul aria-hidden className="divide-y divide-rule border-y border-rule">
+    <ItemGroup aria-hidden>
       {names.map((name) => (
-        <li key={name} className="grid grid-cols-[6rem_1fr_auto] items-center gap-x-4 py-4 md:grid-cols-[8rem_9rem_1fr_4rem]">
-          <span className="font-display text-2xl md:text-3xl">{name}</span>
-          <StatusBadge status="querying" />
-          <span />
-        </li>
+        <Item key={name} role="listitem" variant="outline">
+          <ItemContent>
+            <ItemTitle>{name}</ItemTitle>
+          </ItemContent>
+          <ItemActions>
+            <StatusBadge status="querying" />
+          </ItemActions>
+        </Item>
       ))}
-    </ul>
+    </ItemGroup>
   );
 }

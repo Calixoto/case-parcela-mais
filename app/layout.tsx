@@ -1,19 +1,8 @@
 import type { Metadata, Viewport } from 'next';
-import localFont from 'next/font/local';
+import { GeistSans } from 'geist/font/sans';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { copy } from '@/src/copy/pt-BR';
 import './globals.css';
-
-// Bricolage Grotesque, variable (wght 200–800, wdth 75–100, opsz 12–96), latin subset, self-hosted:
-// no network access needed at build time (Docker) and no third-party request from the browser.
-const bricolage = localFont({
-  src: '../fonts/bricolage-grotesque-latin.woff2',
-  weight: '200 800',
-  style: 'normal',
-  display: 'swap',
-  variable: '--font-bricolage',
-  declarations: [{ prop: 'font-stretch', value: '75% 100%' }],
-});
 
 export const metadata: Metadata = {
   title: { template: `%s · ${copy.app.name}`, default: copy.app.name },
@@ -21,13 +10,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#f3f6f5',
+  themeColor: '#ffffff',
   colorScheme: 'light',
 };
 
+// Geist ships inside the `geist` package (next/font/local underneath): no network request at build time.
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="pt-BR" className={`${bricolage.variable} h-full antialiased`}>
+    <html lang="pt-BR" className={`${GeistSans.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <NuqsAdapter>{children}</NuqsAdapter>
       </body>

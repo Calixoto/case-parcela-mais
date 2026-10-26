@@ -12,7 +12,7 @@ export const sortParser = parseAsStringLiteral(SORT_CRITERIA)
 /** Demo scenario; absent = natural flow. Lives in the URL during registration and in the database after. */
 export const scenarioParser = parseAsStringLiteral(SCENARIO_IDS).withOptions({ history: 'replace', shallow: true });
 
-export const HINTS = ['lower_amount', 'retry'] as const;
+export const HINTS = ['lower_amount', 'retry', 'retry_refused'] as const;
 export type Hint = (typeof HINTS)[number];
 
 /** Why the clinic came back to the amount step ("try a lower amount" / "consult again"); only changes the banner. */

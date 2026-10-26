@@ -119,25 +119,3 @@ export async function startNewSimulation(): Promise<void> {
   await clearLastConsultationId();
   redirect('/register/patient');
 }
-
-/** Demo personas of docs/03, stored as the clinic would have typed them. */
-const PERSONAS = {
-  A: { fullName: 'Ana Souza', cpf: '529.982.247-25', birthDate: '1996-03-15', phone: '(11) 91234-5678', monthlyIncome: 'R$ 5.000,00', treatmentAmount: 'R$ 15.000,00' },
-  B: { fullName: 'Bruno Lima', cpf: '123.456.789-09', birthDate: '2004-05-10', phone: '(21) 98765-4321', monthlyIncome: 'R$ 1.500,00', treatmentAmount: 'R$ 25.000,00' },
-  C: { fullName: 'Carla Dias', cpf: '390.533.447-05', birthDate: '1986-07-02', phone: '(31) 99876-5432', monthlyIncome: 'R$ 3.000,00', treatmentAmount: 'R$ 45.000,00' },
-} as const;
-
-type PersonaId = keyof typeof PERSONAS;
-
-function isPersonaId(value: unknown): value is PersonaId {
-  return typeof value === 'string' && value in PERSONAS;
-}
-
-/** Fills the draft with a persona and opens the last step with the chosen scenario (demo shortcut). */
-export async function applyPersona(formData: FormData): Promise<void> {
-  const persona = formData.get('persona');
-  const scenario = scenarioFrom(formData);
-  if (!isPersonaId(persona)) redirect('/register/patient');
-  await writeDraft({ ...PERSONAS[persona] });
-  redirect(`/register/financing${scenarioQuery(scenario)}`);
-}

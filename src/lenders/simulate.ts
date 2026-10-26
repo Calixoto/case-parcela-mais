@@ -44,8 +44,11 @@ function decideWith(lender: LenderConfig, input: QuoteInput, override: LenderOve
     case 'approve':
     case 'timeout': // "timeout" only changes the delay; the answer itself is a normal approval
       return { outcome: 'approved', approvedAmountCents: input.treatmentAmountCents };
-    case 'refuse':
-      return { outcome: 'refused', reasonCode: 'forced' };
+    case 'refuse': {
+      // A real refusal keeps its reason (so "try a lower amount" can still be suggested); only an approval is forced into a refusal.
+      const natural = lender.decide(input);
+      return natural.outcome === 'refused' ? natural : { outcome: 'refused', reasonCode: 'forced' };
+    }
     case 'error':
       throw new LenderHttpError(500);
     case 'natural':

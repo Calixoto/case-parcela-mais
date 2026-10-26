@@ -21,16 +21,18 @@ export function isScenarioId(value: unknown): value is ScenarioId {
 }
 
 /**
- * Named presets for the demo (docs/06 D7). Delays are short where the scenario does not need the wait.
- * The timeout preset derives its delay from the deadline, so changing the deadline keeps it timing out.
+ * Named presets for the four scenarios the case asks to force (docs/06 D7). Delays are short where
+ * the scenario does not need the wait. The timeout preset derives its delay from the deadline, so
+ * changing the deadline keeps it timing out.
  */
 export function presetOverrides(scenario: ScenarioId, deadlineMs: number): Overrides {
   switch (scenario) {
     case 'all_approve':
+      // Alfa and Gama are forced (their rules could refuse the typed data); Beta always approves by rule, capped at 60%.
       return {
-        alfa: { outcome: 'natural', delayMs: 500 },
+        alfa: { outcome: 'approve', delayMs: 500 },
         beta: { outcome: 'natural', delayMs: 1_000 },
-        gama: { outcome: 'natural', delayMs: 1_000 },
+        gama: { outcome: 'approve', delayMs: 1_000 },
         delta: { outcome: 'approve', delayMs: 2_000 },
       };
     case 'delta_error':
@@ -47,33 +49,11 @@ export function presetOverrides(scenario: ScenarioId, deadlineMs: number): Overr
   }
 }
 
-/** Preset first, explicit per-lender overrides on top (tests and the live demo use the same mechanism). */
+/** Preset first, explicit per-lender overrides on top (a test seam: production only ever passes the preset). */
 export function resolveOverrides(
   scenario: ScenarioId | null,
   overrides: Overrides | undefined,
   deadlineMs: number,
 ): Overrides {
   return { ...(scenario ? presetOverrides(scenario, deadlineMs) : {}), ...(overrides ?? {}) };
-}
-
-const OUTCOMES = ['natural', 'approve', 'refuse', 'error', 'timeout'] as const;
-
-/** Longest delay an explicit override may ask for: enough to overshoot any sane deadline, never a timer that outlives the demo. */
-export const MAX_OVERRIDE_DELAY_MS = 60_000;
-
-/** Validates the optional per-lender overrides accepted by the JSON API; anything malformed is rejected. */
-export function parseOverrides(value: unknown): Overrides | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== 'object' || Array.isArray(value)) throw new TypeError('overrides must be an object keyed by lender id');
-  const result: Record<string, LenderOverride> = {};
-  for (const [lenderId, raw] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof raw !== 'object' || raw === null) throw new TypeError(`override for ${lenderId} must be an object`);
-    const { outcome, delayMs } = raw as { outcome?: unknown; delayMs?: unknown };
-    if (!(OUTCOMES as readonly unknown[]).includes(outcome)) throw new TypeError(`override for ${lenderId}: unknown outcome`);
-    if (delayMs !== undefined && !(Number.isInteger(delayMs) && (delayMs as number) >= 0 && (delayMs as number) <= MAX_OVERRIDE_DELAY_MS)) {
-      throw new TypeError(`override for ${lenderId}: delayMs must be an integer between 0 and ${MAX_OVERRIDE_DELAY_MS}`);
-    }
-    result[lenderId] = delayMs === undefined ? { outcome: outcome as LenderOverride['outcome'] } : { outcome: outcome as LenderOverride['outcome'], delayMs: delayMs as number };
-  }
-  return result;
 }

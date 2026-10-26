@@ -1,6 +1,8 @@
 'use client';
 
 import type { ChangeEventHandler, FocusEventHandler, HTMLInputAutoCompleteAttribute } from 'react';
+import { Field, FieldDescription, FieldError, FieldLabel } from '@/src/components/ui/field';
+import { Input } from '@/src/components/ui/input';
 
 type Props = {
   readonly name: string;
@@ -15,22 +17,23 @@ type Props = {
   readonly autoFocus?: boolean;
   readonly max?: string;
   readonly maxLength?: number;
+  /** Extra id to announce with the field (e.g. the banner that explains why the clinic is back here). */
+  readonly describedBy?: string;
   readonly onBlur?: FocusEventHandler<HTMLInputElement>;
   readonly onChange?: ChangeEventHandler<HTMLInputElement>;
 };
 
-/** Ruled input (bottom line only) with its label, optional help and the error message read by screen readers. */
-export function TextField({ name, label, defaultValue, error, help, type = 'text', inputMode, placeholder, autoComplete, autoFocus, max, maxLength, onBlur, onChange }: Props) {
+/** Labelled input with optional help text and an error message read by screen readers; the help yields to the error. */
+export function TextField({ name, label, defaultValue, error, help, type = 'text', inputMode, placeholder, autoComplete, autoFocus, max, maxLength, describedBy: extraDescribedBy, onBlur, onChange }: Props) {
   const id = `field-${name}`;
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
-  const describedBy = [error ? errorId : null, help ? helpId : null].filter(Boolean).join(' ') || undefined;
+  const showHelp = Boolean(help) && !error;
+  const describedBy = [error ? errorId : null, showHelp ? helpId : null, extraDescribedBy ?? null].filter(Boolean).join(' ') || undefined;
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm text-ink-muted">
-        {label}
-      </label>
-      <input
+    <Field data-invalid={error ? true : undefined}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
         id={id}
         name={name}
         type={type}
@@ -45,18 +48,9 @@ export function TextField({ name, label, defaultValue, error, help, type = 'text
         aria-describedby={describedBy}
         onBlur={onBlur}
         onChange={onChange}
-        className="input-ruled text-xl"
       />
-      {help && !error ? (
-        <p id={helpId} className="text-sm text-ink-muted">
-          {help}
-        </p>
-      ) : null}
-      {error ? (
-        <p id={errorId} role="alert" className="text-sm text-brick">
-          {error}
-        </p>
-      ) : null}
-    </div>
+      {showHelp ? <FieldDescription id={helpId}>{help}</FieldDescription> : null}
+      {error ? <FieldError id={errorId}>{error}</FieldError> : null}
+    </Field>
   );
 }

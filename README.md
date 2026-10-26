@@ -8,8 +8,10 @@ de cada financeira chegando na tela conforme respondem, ofertas por financeira �
 ordenação por menor parcela ou menor total, escolha salva no servidor e tela de confirmação. A página inicial oferece retomar a
 última consulta aberta neste navegador.
 
-Stack: Next.js 16.4 (App Router com Cache Components), React 19, TypeScript, Tailwind 4, nuqs, zod 4, SQLite via
-`node:sqlite`, Vitest 5, Docker Compose. Um único processo Node é front, API e orquestrador.
+Stack: Next.js 16.4 (App Router com Cache Components), React 19, TypeScript, Tailwind 4, shadcn/ui (primitivas Base UI)
+com a fonte Geist, nuqs, zod 4, SQLite via `node:sqlite`, Vitest 5, Docker Compose. Um único processo Node é front, API
+e orquestrador. A interface é o visual padrão do shadcn (tema `neutral`), sem design próprio: o enunciado diz que uma
+interface limpa e fácil de usar basta e que o layout não é avaliado pixel a pixel.
 
 ## Como rodar
 
@@ -46,69 +48,71 @@ O banco é criado e migrado no primeiro acesso em `./data/app.sqlite` (pasta ign
 
 | Comando | O que faz |
 |---|---|
-| `pnpm test` | Vitest: 13 arquivos, 538 testes, cerca de 0,3 s (`pnpm test:watch` em modo watch) |
+| `pnpm test` | Vitest: 14 arquivos, 544 testes, menos de 1 s (`pnpm test:watch` em modo watch) |
 | `pnpm typecheck` | `next typegen && tsc --noEmit` |
 | `pnpm lint` | ESLint com `eslint-config-next` (inclui as regras do React Compiler) |
 | `pnpm build` | `next build` com Turbopack e `output: 'standalone'`; o `postbuild` copia `public/` e `.next/static` para `.next/standalone/` |
 | `pnpm start` | `node .next/standalone/server.js`, o mesmo comando do container (o `next start` não serve o modo standalone) |
 
-Com o servidor no ar, `node scripts/demo-api.mjs delta_timeout` percorre o contrato HTTP como o front faz: imprime o
-`POST /api/consultations` (status, id, cenário, ms até o prazo), uma linha por leitura do `GET` com o tempo decorrido e
-o status de cada financeira, a linha final com `finishReason`, ofertas, `outcome` e `nextStep`, as três primeiras
-ofertas e o `POST .../choice` da primeira oferta (201), a mesma escolha de novo (200) e uma diferente (409). Argumentos:
-o preset ou `natural`, depois a URL base. Com `delta_timeout`, ~2 s após o fechamento o servidor loga `late_result_ignored`.
-`curl -s localhost:3000/api/lenders/metrics` devolve, por financeira, chamadas, aprovações, recusas, indisponibilidades, taxa de
-erro, taxa de timeout, respostas tardias e latência p50/p95, só do fluxo natural (consultas com cenário forçado ficam de fora).
+Com o servidor no ar, `curl -s localhost:3000/api/lenders/metrics` devolve, por financeira, chamadas, aprovações, recusas,
+indisponibilidades, taxa de erro, taxa de timeout, respostas tardias e latência p50/p95, só do fluxo natural (consultas
+com cenário forçado ficam de fora). O `curl` que cria uma consulta está em "Como forçar cada cenário"; as rotas, em
+"Contrato da API".
 
 ## Como forçar cada cenário
 
-O cenário é um preset de overrides por financeira (`src/lenders/scenarios.ts`) que a consulta grava na coluna
-`forced_scenario`. Ele entra por quatro caminhos:
+O cenário é um dos quatro presets de `src/lenders/scenarios.ts` (`all_approve`, `delta_error`, `delta_timeout`,
+`none_approve`), gravado na coluna `forced_scenario` da consulta; cada preset fixa, por financeira, o resultado e o
+tempo de resposta. Ele entra por dois caminhos na interface e um na API:
 
 - `?scenario=<preset>` na URL do cadastro (`/register/patient?scenario=delta_error` ou direto em
-  `/register/financing`); o passo 1 repassa o valor ao passo 2 num campo oculto e as actions o mantêm nos redirects;
-- o seletor "Cenário de demonstração" no último passo (`src/components/register/scenario-select.tsx`): lê e escreve
-  `?scenario=` via nuqs e também é um campo do formulário, então funciona sem JavaScript;
-- o formulário "Dados de demonstração" na página inicial: escolhe a persona A, B ou C e o cenário, grava o rascunho
-  com os dados da persona (`applyPersona`, em `app/register/actions.ts`) e abre o último passo com `?scenario=`;
-- os campos `scenario` e `overrides` do `POST /api/consultations`: `overrides` é `{ [lenderId]: { outcome, delayMs? } }`,
-  `outcome` em `natural | approve | refuse | error | timeout`, aplicado por cima do preset (os testes usam o mesmo
-  mecanismo). `timeout` só muda a decisão para "aprova": o `delayMs` é que precisa passar de `CONSULTATION_DEADLINE_MS`.
+  `/register/financing`); o passo 1 repassa o valor ao passo 2 num campo oculto e as actions o mantêm nos redirects,
+  "Voltar" inclusive;
+- o seletor "Cenário de demonstração", sempre visível no último passo (`src/components/register/scenario-select.tsx`):
+  um `<select>` nativo (`NativeSelect` do shadcn) que lê e escreve `?scenario=` via nuqs e também é um campo do
+  formulário, então funciona sem JavaScript; a opção padrão é "Fluxo natural";
+- o campo `scenario` do `POST /api/consultations`, para clientes da API (ausente ou `null` = fluxo natural).
 
-A URL da consulta nunca carrega o cenário: a fonte é a coluna. Com a persona A (30 anos, renda R$ 5.000, tratamento
-R$ 15.000) os presets reproduzem a tabela "Cenários forçados" de `docs/05-numeros-de-referencia.md`:
+A URL da consulta nunca carrega o cenário: a fonte é a coluna. Não há override público por financeira: o mecanismo
+existe só por dentro (os presets são feitos dele e `runConsultation` aceita um terceiro parâmetro como seam de teste);
+um corpo que ainda mande `overrides` não é rejeitado, a chave é descartada como qualquer campo desconhecido.
 
-| Preset | Alfa | Beta | Gama | Delta | Tela esperada (persona A) |
+Dados de exemplo: 30 anos, renda R$ 5.000 e tratamento R$ 15.000 (a regra da Alfa e a da Gama aprovam; a Beta cobre
+60%) reproduzem a tabela "Cenários forçados" de `docs/05-numeros-de-referencia.md`:
+
+| Preset | Alfa | Beta | Gama | Delta | Tela esperada (dados de exemplo) |
 |---|---|---|---|---|---|
-| `all_approve` | regra natural, 0,5 s | natural, 1 s | natural, 1 s | aprova, 2 s | 12 ofertas; Beta parcial (60%, R$ 9.000) |
+| `all_approve` | aprova, 0,5 s | regra natural (sempre aprova, até 60%), 1 s | aprova, 1 s | aprova, 2 s | 12 ofertas; Beta parcial (60%, R$ 9.000) |
 | `delta_error` | natural, tempo sorteado | natural | natural | erro 500 em 1 s | 9 ofertas; Delta "Indisponível", motivo `http_500` |
 | `delta_timeout` | natural | natural | natural | aprova em prazo + 2 s (12 s) | 9 ofertas; fecha aos 10 s; Delta "Indisponível", motivo `timeout` |
-| `none_approve` | recusa forçada, 0,5 s | recusa, 1 s | recusa, 1 s | recusa, 1,5 s | 0 ofertas; "Nenhuma financeira aprovou" e "Consultar de novo" |
+| `none_approve` | recusa, 0,5 s | recusa, 1 s | recusa, 1 s | recusa, 1,5 s | 0 ofertas; "Nenhuma financeira aprovou" e "Consultar de novo" (com o exemplo B, "Tentar com um valor menor") |
 
 No `delta_timeout` a Delta responde de propósito em `deadline + 2 s` (`LATE_RESPONSE_EXTRA_MS`): a consulta fecha aos
 10 s, a resposta chega aos 12 s, encontra a linha já terminal e vira o log `late_result_ignored`, sem mudar a tela. No
-`none_approve` as recusas têm motivo `forced`, que um valor menor não resolve, por isso o botão é "Consultar de novo";
-"Tentar com um valor menor" aparece com alguma recusa por renda (`income_insufficient`) ou limite (`amount_above_limit`)
-e valor acima de R$ 1.000,00 (ex.: persona B com `"scenario": "none_approve"` e `"overrides": { "alfa": { "outcome": "natural" } }`).
+`none_approve` toda financeira recusa, mas uma recusa que a própria regra já daria mantém o motivo real (renda, idade,
+limite); só a aprovação vira recusa com motivo `forced`. Com os dados de exemplo da tabela as quatro recusas são
+`forced`, que um valor menor não resolve, e o botão é "Consultar de novo"; com o exemplo B (renda R$ 1.500, tratamento
+R$ 25.000) a Alfa recusa por renda e a Gama por idade, e a tela oferece "Tentar com um valor menor" (aparece quando
+ninguém aprova, alguma recusa é por renda ou limite e o valor passa de R$ 1.000,00). O `all_approve` força a Alfa e a
+Gama, então não depende dos dados digitados; a Beta aprova sempre pela própria regra, até 60%.
 
-Fluxo natural (sem preset) com as personas da página inicial (dados fictícios; os CPFs só passam no algoritmo):
+Fluxo natural (sem preset), com dados de exemplo para digitar (fictícios; os CPFs só passam no dígito verificador):
 
-| Persona | Dados | O que acontece |
+| Exemplo | Dados | O que acontece |
 |---|---|---|
 | A | Ana Souza, CPF 529.982.247-25, 15/03/1996, renda R$ 5.000, tratamento R$ 15.000 | Alfa, Beta (60%) e Gama aprovam; Delta aleatória |
 | B | Bruno Lima, CPF 123.456.789-09, 10/05/2004, renda R$ 1.500, tratamento R$ 25.000 | Alfa recusa por renda (15.000 < 25.000), Gama por idade (22 < 25), Beta aprova R$ 15.000, Delta aleatória |
 | C | Carla Dias, CPF 390.533.447-05, 02/07/1986, renda R$ 3.000, tratamento R$ 45.000 | Alfa recusa (30.000 < 45.000), Gama recusa por limite (> R$ 20.000), Beta aprova R$ 27.000, Delta aleatória |
 
 "Aleatória" na Delta: resposta entre 4 e 15 s e erro 500 em 30% das chamadas, os dois sorteados no início da chamada;
-ela estoura os 10 s em cerca de 45% das vezes. Pela API, forçando também a Beta a estourar o prazo:
+ela estoura os 10 s em cerca de 45% das vezes. Pela API, com o preset em que a Delta estoura o prazo:
 
 ```bash
 curl -s -X POST http://localhost:3000/api/consultations -H 'content-type: application/json' -d '{
   "patient": { "fullName": "Ana Souza", "cpf": "529.982.247-25", "birthDate": "1996-03-15",
                "phone": "11912345678", "monthlyIncomeCents": 500000 },
   "treatmentAmountCents": 1500000,
-  "scenario": "delta_timeout",
-  "overrides": { "beta": { "outcome": "timeout", "delayMs": 12000 } }
+  "scenario": "delta_timeout"
 }'
 ```
 
@@ -145,7 +149,9 @@ Dependências, de cima para baixo: `app/` e `src/components` conhecem `src/serve
 `src/url-state` (handlers e actions importam também `getDb()` e `LENDERS`); `src/server` conhece `src/db`,
 `src/orchestration`, `src/lenders` e `src/domain`; `src/orchestration` conhece `src/lenders` e os repositórios;
 `src/lenders` conhece só `src/domain`; `src/domain` não importa Next, banco nem React (só as mensagens de
-`src/copy/pt-BR.ts`, onde está toda string visível).
+`src/copy/pt-BR.ts`, onde está toda string visível). `src/components/ui` são os componentes do shadcn gerados pela CLI
+(`shadcn add`) e versionados no repositório: conhecem só `@base-ui/react`, `class-variance-authority`, `cn` e
+`lucide-react`, nada do app; as telas os importam de `@/src/components/ui/<nome>`.
 
 | O quê | Onde |
 |---|---|
@@ -160,6 +166,7 @@ Dependências, de cima para baixo: `app/` e `src/components` conhecem `src/serve
 | Cenários | `src/lenders/scenarios.ts` |
 | Polling | `src/components/consultation/use-consultation-snapshot.ts` |
 | Métricas por financeira | `src/server/metrics.service.ts`, exposto em `GET /api/lenders/metrics` |
+| Componentes de interface | `src/components/ui`, gerados pela CLI do shadcn 4.22 (`components.json`: estilo `base-nova`, tema `neutral`); os que as telas usam: `button`, `field`, `input`, `native-select`, `progress`, `badge`, `item`, `table`, `toggle-group`, `alert`, `empty`, `card`, `separator`, `skeleton`, `spinner` |
 
 ## Decisões e trade-offs
 
@@ -190,18 +197,29 @@ Dependências, de cima para baixo: `app/` e `src/components` conhecem `src/serve
 - **Cadastro em 2 passos com rascunho bruto em cookie httpOnly.** `pm_draft` guarda as strings como digitadas, escrito
   só por Server Actions: "Voltar" grava sem validar e recarregar refaz a tela; o cliente valida no blur com o mesmo
   schema zod que o servidor revalida; o cenário vive na URL, no formulário e na coluna, nunca no cookie (senão
-  "tentar um valor menor" repetiria `none_approve`). Trade-off: ~300 B por requisição e formatação no blur que
+  "tentar um valor menor" repetiria `none_approve`); "Continuar" vem antes de "Voltar" no DOM (a linha é invertida
+  no visual) para o Enter num campo avançar, não voltar. Trade-off: ~300 B por requisição e formatação no blur que
   reescreve o que foi digitado.
 - **Server Actions para a interface e Route Handlers para o contrato, com os mesmos services.** Actions dão cookie,
   redirect e formulário sem JavaScript; handlers dão polling e `curl`. Trade-off: duas portas de entrada alinhadas
   pelo mesmo schema.
-- **Cache Components.** Páginas não assíncronas com shell estático (título, trilho, as 4 linhas "Consultando") e um
-  filho em `<Suspense>` que faz `await params`/`cookies()` e `await io()` antes de ler relógio e SQLite; handlers
-  `GET` com `await connection()`. Trade-off: uma leitura síncrona fora desse padrão seria congelada no shell no build.
-- **Vitest só em node, fake timers e SQLite em memória.** 538 testes em ~0,3 s: CPF, idade com data injetada, Price
-  (28 fixtures), ordenações, regras, cenários, orquestração (encerra cedo, prazo, 500, resposta tardia sem alterar o
-  banco, 4 presets com a persona A → 12/9/9/0), reconciliação, escolha, schema. Trade-off: sem testes de componente
-  nem E2E; handlers sem teste unitário (precisam de request scope).
+- **Cache Components.** Páginas não assíncronas com shell estático (moldura, `Skeleton` e, na consulta, as 4 linhas
+  "Consultando") e um filho em `<Suspense>` que faz `await params`/`cookies()` e `await io()` antes de ler relógio e
+  SQLite; handlers `GET` com `await connection()`. Trade-off: uma leitura síncrona fora desse padrão seria congelada no
+  shell no build.
+- **shadcn/ui com primitivas Base UI.** Componentes padrão e acessíveis, copiados como código para
+  `src/components/ui` pela CLI (estilo `base-nova`, tema `neutral`, fonte Geist): nenhum design system próprio para
+  defender, já que o enunciado diz que uma interface limpa basta e não avalia o visual. Trade-off: a Base UI é o
+  padrão atual da CLI e difere da documentação e dos exemplos baseados em Radix (`render` em vez de `asChild`); um
+  link com cara de botão é `<Link className={buttonVariants(...)}>`, para manter a semântica de link, em vez do
+  `Button` renderizado como `<Link>`; a tabela de ofertas rola na horizontal em celulares estreitos (é a `Table`
+  padrão), no lugar do layout dobrado que havia; o `Spinner` traz `aria-label` em inglês, por isso vai com
+  `aria-hidden` e o texto do botão faz o anúncio; e são componentes copiados, que o repositório passa a manter
+  (atualizar é rodar a CLI de novo e revisar o diff).
+- **Vitest só em node, fake timers e SQLite em memória.** 544 testes em menos de 1 s: CPF, idade com data injetada,
+  Price (28 fixtures), ordenações, regras, cenários, orquestração (encerra cedo, prazo, 500, resposta tardia sem
+  alterar o banco, 4 presets com os dados de exemplo → 12/9/9/0), reconciliação, escolha, schema. Trade-off: sem
+  testes de componente nem E2E; handlers sem teste unitário (precisam de request scope).
 - **"Menor custo total" = total pago bruto, com cobertura visível.** Trade-off: a Beta lidera as duas ordenações
   porque financia menos; "Cobre 60%, faltam R$ 6.000,00" mantém a comparação honesta, sem custo por real financiado.
 - **Uma escolha por consulta.** `UNIQUE (consultation_id)`; outra escolha → 409, a mesma → 200; validada contra o
@@ -210,6 +228,10 @@ Dependências, de cima para baixo: `app/` e `src/components` conhecem `src/serve
   Trade-off: dá para escolher antes de uma oferta melhor chegar; o aviso na tela cobre isso.
 - **"Indisponível" conta como "não aprovou".** A tela diz quantas recusaram e quantas ficaram indisponíveis e sugere
   o passo que ajuda (`lower_amount` ou `retry`). Trade-off: a tela de motivo aparece mesmo com problema técnico.
+- **Sem contador de segundos nem latência na tela da consulta.** O enunciado pede o status de cada financeira e o
+  limite de 10 s, não o tempo exibido: cada linha mostra "Consultando" com um indicador de carregamento e depois o
+  resultado. Trade-off: o fechamento aos 10 s não aparece como contagem; a latência fica no log e em
+  `GET /api/lenders/metrics`.
 - **Cookie não assinado.** Revalidação com zod a cada uso; adulterar só muda um rascunho que o servidor valida de
   novo. `Secure` por `COOKIE_SECURE` (a demo roda em HTTP). Trade-off: em produção seria selado.
 
@@ -219,7 +241,7 @@ JSON em todas as rotas; erros no formato `{ code, message, errors? }`; `Cache-Co
 
 | Rota | Entrada | Respostas |
 |---|---|---|
-| `POST /api/consultations` | `{ patient: { fullName, cpf, birthDate, phone, monthlyIncomeCents }, treatmentAmountCents, scenario?, overrides? }` | `201 { consultationId, deadlineAt }`; `400` JSON inválido; `422` com `errors` agrupado por campo de primeiro nível (`patient`, `treatmentAmountCents`, `scenario`), ou sem `errors` se `overrides` for malformado |
+| `POST /api/consultations` | `{ patient: { fullName, cpf, birthDate, phone, monthlyIncomeCents }, treatmentAmountCents, scenario? }` | `201 { consultationId, deadlineAt }`; `400` JSON inválido; `422` com `errors` agrupado por campo de primeiro nível (`patient`, `treatmentAmountCents`, `scenario`); chaves desconhecidas (como `overrides`) são descartadas |
 | `GET /api/consultations/{id}` | — | `200 ConsultationSnapshot`; `404` |
 | `POST /api/consultations/{id}/choice` | `{ lenderId, termMonths }` | `201 { choice }`; `200 { choice }` se for a mesma escolha (idempotente); `400` JSON inválido; `404`; `409 already_chosen`; `422` corpo inválido, `lender_not_approved` ou `term_not_offered` |
 | `GET /api/health` | — | `200 { ok: true, db: 'ok' }`; `503 { ok: false, db: 'error' }` |
@@ -302,9 +324,13 @@ nos testes:
 - Retry único na Delta em caso de 500, dentro do orçamento `deadline_at − now`, em `src/orchestration/call-lender.ts`.
 - Cookie assinado (HMAC) para o rascunho.
 - PostgreSQL: reescrever `src/db/client.ts`, as migrações e `src/server/repositories.ts`; o SQL explícito ajuda.
-- Testes de componente (jsdom, `nuqs/adapters/testing`) e E2E; hoje os handlers só são exercitados por `scripts/demo-api.mjs`.
+- Testes de componente (jsdom, `nuqs/adapters/testing`) e E2E; hoje os handlers são exercitados com `curl` e pela
+  própria interface, sem E2E.
+- Override público por financeira no `POST /api/consultations` (ex.: fazer a Beta também estourar o prazo): o
+  mecanismo existe só por dentro (os presets são feitos dele e `runConsultation` aceita um terceiro parâmetro como
+  seam de teste), porque o enunciado pede só os quatro cenários; expô-lo é um campo `overrides` validado no schema.
 - `<ViewTransition>` entre os passos e na chegada das ofertas; acessibilidade além do básico (foco visível,
-  `aria-live`, `role="alert"`, radiogroup), com revisão em leitor de tela.
+  `aria-live`, `role="alert"`, `aria-pressed` na ordenação), com revisão em leitor de tela.
 - Filtro "só quem cobre tudo" e ordenação por juros: `interestCents` e `isPartial` já vêm no DTO; é um literal em
   `src/url-state/parsers.ts`, um `case` em `src/domain/sorting.ts` e uma opção no controle.
 - Chave de idempotência no `POST /api/consultations` (hoje cada submit cria uma consulta).
@@ -324,12 +350,20 @@ Usei o Claude Code (Anthropic) do início ao fim, e prefiro dizer exatamente ond
   `summarize`, `registration-schema`) foram escritos por agentes em paralelo a partir de assinaturas que eu fixei e das
   fixtures de `docs/05-numeros-de-referencia.md`, e depois revisados por mim. Orquestrador, persistência, API, telas e
   os testes de orquestração e de escolha foram escritos interativamente com o assistente, trecho a trecho.
-- Verificação: rodei a suíte, o `next build`, o `scripts/demo-api.mjs` e uma sessão real de navegador (Playwright)
-  percorrendo cadastro, consulta, escolha e confirmação.
+- Verificação: rodei a suíte, o `next build`, um script de demonstração da API (removido depois, na migração para o
+  shadcn) e uma sessão real de navegador (Playwright) percorrendo cadastro, consulta, escolha e confirmação.
 - Descartado ou corrigido: Drizzle (RC para `node:sqlite`, descartado antes de codar); um arquivo `'use server'` que
   exportava valores que não eram actions (o Next só aceita funções assíncronas nessas exportações); `Date.now()` no
   render, apontado pelas regras de lint do React Compiler, que virou `await io()` no servidor e
-  `serverNow` + `performance.now()` no trilho do cliente.
+  `serverNow` + `performance.now()` no trilho de tempo do cliente, que depois saiu da tela.
+- Na tarde de 26/10: migração da interface para o shadcn/ui e remoção do que o enunciado não pede (personas da página
+  inicial, script de demonstração, campo `overrides` da API, fonte e paleta próprias) com 4 agentes em paralelo, cada
+  um num conjunto disjunto de arquivos (backend; home, erros e confirmação; cadastro; consulta); depois, uma revisão
+  adversarial em três frentes, com cada apontamento verificado no código antes de virar correção, e uma sessão de
+  navegador. Descartado: o `Button` da Base UI renderizado como `<Link>` (`render` + `nativeButton={false}`, que dá
+  `role="button"` ao link), trocado por `buttonVariants` num `<Link>`.
+  A revisão achou, entre outros, que `all_approve` e `none_approve` dependiam dos dados digitados (sem os exemplos da
+  home, "Tentar com um valor menor" ficava inalcançável); os dois presets foram corrigidos e ganharam testes.
 - Este README também foi rascunhado com o assistente a partir dos docs e do código, e revisado por mim.
 
 ## Log de horas
@@ -349,6 +383,7 @@ abaixo das 6 h esperadas por causa desse paralelismo, não por corte de escopo.
 | Verificação | 00:58 | 01:22 | 0h24 | suíte, build, `demo-api`, sessão no navegador (desktop e celular), Docker a partir de clone limpo |
 | T5 README | 01:05 | 01:22 | 0h17 | este README |
 | Bônus e revisão (26/10) | 08:20 | 08:50 | 0h30 | métricas por financeira, retomar consulta na home, revisão adversarial do código |
+| Ajustes (26/10) | 12:33 | 14:15 | 1h42 | shadcn/ui em todas as telas, remoção dos extras (exemplos na home, script de demo, `overrides` público), revisão adversarial com verificação, presets que não dependem dos dados, README |
 
 ## Glossário
 
@@ -364,7 +399,7 @@ escolha = chosen offer · resposta tardia = late result.
 | Arquivo | Conteúdo |
 |---|---|
 | `docs/01-requisitos-e-criterios.md` | checklist dos requisitos e critérios do enunciado, com os itens implícitos |
-| `docs/03-alteracao-ao-vivo-e-demo.md` | pedidos prováveis da alteração ao vivo, personas A/B/C, roteiro da demo e checklists |
+| `docs/03-alteracao-ao-vivo-e-demo.md` | pedidos prováveis da alteração ao vivo, dados de exemplo A/B/C, roteiro da demo e checklists |
 | `docs/05-numeros-de-referencia.md` | tabela Price, ordenações, fronteiras de idade, valor e CPF, resultados por cenário (fixtures dos testes) |
 | `docs/06-decisoes-de-arquitetura.md` | decisões D1 a D14 com contexto, opções e o que registrar |
 | `docs/07-plano-de-desenvolvimento.md` | plano SDD: constituição, especificação, plano técnico, tarefas, demo, decisões A1 a A15 e glossário |

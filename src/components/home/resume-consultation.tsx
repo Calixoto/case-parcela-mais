@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { buttonVariants } from '@/src/components/ui/button';
 import { copy } from '@/src/copy/pt-BR';
 import { getDb } from '@/src/db/client';
 import { readLastConsultationId } from '@/src/server/draft-cookie';
@@ -20,7 +21,8 @@ export async function ResumeConsultation() {
   }
   if (!fullName) return null;
   return (
-    <Link href={`/consultations/${id}`} className="inline-flex h-12 w-fit items-center rounded-control border border-rule px-5 font-medium text-ink hover:border-ink">
+    // A navigation, so a real link styled as a button (the classic shadcn pattern) keeps link semantics.
+    <Link href={`/consultations/${id}`} className={buttonVariants({ variant: 'outline' })}>
       {copy.home.resume}: {fullName}
     </Link>
   );
