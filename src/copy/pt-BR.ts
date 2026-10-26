@@ -14,11 +14,19 @@ export const copy = {
     resume: 'Retomar consulta',
     demoTitle: 'Dados de demonstração',
     demoLead: 'Preenche o cadastro com uma pessoa fictícia e abre o último passo com o cenário escolhido.',
+    personaLegend: 'Pessoa fictícia',
+    personas: {
+      A: 'Persona A: 30 anos, renda R$ 5.000, tratamento R$ 15.000',
+      B: 'Persona B: 22 anos, renda R$ 1.500, tratamento R$ 25.000',
+      C: 'Persona C: 40 anos, renda R$ 3.000, tratamento R$ 45.000',
+    },
+    openDemo: 'Abrir demonstração',
   },
   steps: {
     patient: { title: 'Dados do paciente', lead: 'Quem é o paciente que vai parcelar o tratamento.' },
     financing: { title: 'Renda e tratamento', lead: 'O que a financeira usa para decidir.' },
     progress: (current: number, total: number) => `Passo ${current} de ${total}`,
+    navLabel: 'Etapas do cadastro',
   },
   fields: {
     fullName: { label: 'Nome completo', placeholder: 'Maria da Silva' },
@@ -77,6 +85,8 @@ export const copy = {
     approvedFull: (rate: string) => `100% do tratamento, ${rate} ao mês`,
     approvedPartial: (percent: number, amount: string, rate: string) => `${percent}% (${amount}), ${rate} ao mês`,
     chosenBanner: 'Oferta escolhida nesta consulta.',
+    boardLabel: 'Financeiras consultadas',
+    railLabel: 'Tempo da consulta',
     notFound: 'Consulta não encontrada',
   },
   offers: {
@@ -84,6 +94,8 @@ export const copy = {
     sortBy: 'Ordenar por',
     sortInstallment: 'menor parcela',
     sortTotal: 'menor total',
+    listLabel: 'Ofertas',
+    columns: { term: 'Prazo', installment: 'Parcela', total: 'Total pago', lender: 'Financeira' },
     termTimes: (n: number) => `${n}×`,
     total: (amount: string) => `total ${amount}`,
     coverageFull: 'Cobre tudo',
@@ -128,6 +140,8 @@ export const copy = {
     alreadyChosen: 'Esta consulta já tem uma oferta escolhida.',
     offerUnavailable: 'Esta oferta não está mais disponível.',
     generic: 'Algo deu errado.',
+    pageNotFoundTitle: 'Página não encontrada',
+    pageNotFoundLead: 'O endereço não existe ou a consulta não está mais disponível.',
     supportCode: (digest: string) => `Código: ${digest}`,
   },
   api: {
@@ -137,6 +151,8 @@ export const copy = {
     alreadyChosen: 'Esta consulta já tem uma oferta escolhida.',
     lenderNotApproved: 'Esta financeira não aprovou nesta consulta.',
     termNotOffered: 'Prazo não ofertado por esta financeira.',
+    invalidOverrides: 'Campo overrides inválido: use { financeira: { outcome, delayMs? } } com outcome em natural, approve, refuse, error ou timeout e delayMs até 60000.',
+    internalError: 'Erro interno. Tente novamente.',
   },
   lenders: {
     alfa: 'Alfa',

@@ -5,7 +5,7 @@ import { REGISTRATION_STEPS, stepIndex, type StepSlug } from '@/src/domain/regis
 export function StepRail({ current }: { readonly current: StepSlug }) {
   const index = stepIndex(current);
   return (
-    <nav aria-label="Etapas do cadastro" className="flex flex-col gap-2">
+    <nav aria-label={copy.steps.navLabel} className="flex flex-col gap-2">
       <p className="text-sm text-ink-muted">{copy.steps.progress(index + 1, REGISTRATION_STEPS.length)}</p>
       <ol className="flex gap-6 border-b border-rule pb-3">
         {REGISTRATION_STEPS.map((step, position) => {

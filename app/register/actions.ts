@@ -31,13 +31,16 @@ export type StepFormState = {
   readonly attempt: number;
 };
 
+/** Raw values are stored as typed; a pasted novel must not push the cookie past the 4 KB browser limit. */
+const MAX_FIELD_LENGTH = 200;
+
 const stepFields = (slug: StepSlug): readonly RegistrationField[] => REGISTRATION_STEPS.find((step) => step.slug === slug)!.fields;
 
 function pickFields(formData: FormData, fields: readonly RegistrationField[]): RawDraft {
   const raw: Record<string, string> = {};
   for (const field of fields) {
     const value = formData.get(field);
-    raw[field] = typeof value === 'string' ? value : '';
+    raw[field] = typeof value === 'string' ? value.slice(0, MAX_FIELD_LENGTH) : '';
   }
   return raw;
 }

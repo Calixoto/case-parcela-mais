@@ -22,11 +22,15 @@ type Props = {
   readonly todayIso: string;
 };
 
-/** Owns the Server Action state; the body remounts after each server answer (echoed values, fresh client errors). */
+/**
+ * Owns the Server Action state, so it must stay mounted across re-renders (an action that sets the cookie
+ * re-renders the page with a new draft). Only the body remounts: after each server answer (echoed values,
+ * fresh client errors) and whenever the stored draft changes ("Nova simulação", back navigation under <Activity>).
+ */
 export function StepForm(props: Props) {
   const action = props.step === 'patient' ? submitPatientStep : submitFinancingStep;
   const [state, formAction] = useActionState(action, initialStepState);
-  return <StepFormBody key={state.attempt} {...props} state={state} formAction={formAction} />;
+  return <StepFormBody key={`${state.attempt}:${JSON.stringify(props.draft)}`} {...props} state={state} formAction={formAction} />;
 }
 
 type BodyProps = Props & { readonly state: StepFormState; readonly formAction: (formData: FormData) => void };
@@ -52,7 +56,7 @@ function StepFormBody({ step, draft, scenario, hint, todayIso, state, formAction
       <div className="flex flex-col gap-6">
         {step === 'patient' ? (
           <>
-            <TextField name="fullName" label={copy.fields.fullName.label} placeholder={copy.fields.fullName.placeholder} defaultValue={values.fullName} error={errorFor('fullName')} autoComplete="name" autoFocus {...shared} />
+            <TextField name="fullName" label={copy.fields.fullName.label} placeholder={copy.fields.fullName.placeholder} defaultValue={values.fullName} error={errorFor('fullName')} maxLength={120} autoComplete="name" autoFocus {...shared} />
             <TextField name="cpf" label={copy.fields.cpf.label} placeholder={copy.fields.cpf.placeholder} defaultValue={values.cpf} error={errorFor('cpf')} inputMode="numeric" maxLength={14} autoComplete="off" {...shared} />
             <TextField name="birthDate" label={copy.fields.birthDate.label} type="date" max={todayIso} defaultValue={values.birthDate} error={errorFor('birthDate')} autoComplete="bday" {...shared} />
             <TextField name="phone" label={copy.fields.phone.label} placeholder={copy.fields.phone.placeholder} defaultValue={values.phone} error={errorFor('phone')} inputMode="tel" maxLength={16} autoComplete="tel-national" {...shared} />
@@ -64,8 +68,8 @@ function StepFormBody({ step, draft, scenario, hint, todayIso, state, formAction
                 {hint === 'lower_amount' ? copy.offers.hintLowerAmount : copy.offers.hintRetry}
               </p>
             ) : null}
-            <TextField name="monthlyIncome" label={copy.fields.monthlyIncome.label} placeholder={copy.fields.monthlyIncome.placeholder} defaultValue={values.monthlyIncome} error={errorFor('monthlyIncome')} inputMode="decimal" autoComplete="off" autoFocus={!hint} {...shared} />
-            <TextField name="treatmentAmount" label={copy.fields.treatmentAmount.label} placeholder={copy.fields.treatmentAmount.placeholder} help={copy.fields.treatmentAmount.help} defaultValue={values.treatmentAmount} error={errorFor('treatmentAmount')} inputMode="decimal" autoComplete="off" autoFocus={Boolean(hint)} {...shared} />
+            <TextField name="monthlyIncome" label={copy.fields.monthlyIncome.label} placeholder={copy.fields.monthlyIncome.placeholder} defaultValue={values.monthlyIncome} error={errorFor('monthlyIncome')} inputMode="decimal" maxLength={24} autoComplete="off" autoFocus={!hint} {...shared} />
+            <TextField name="treatmentAmount" label={copy.fields.treatmentAmount.label} placeholder={copy.fields.treatmentAmount.placeholder} help={copy.fields.treatmentAmount.help} defaultValue={values.treatmentAmount} error={errorFor('treatmentAmount')} inputMode="decimal" maxLength={24} autoComplete="off" autoFocus={Boolean(hint)} {...shared} />
           </>
         )}
       </div>

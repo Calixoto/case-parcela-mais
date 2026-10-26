@@ -352,7 +352,11 @@ describe('createConsultationInputSchema (POST /api/consultations)', () => {
     expect(apiErrors(body)).toEqual({ patient: [copy.errors.monthlyIncome] });
   });
 
-  it.each(['delta_slow', 'ALL_APPROVE', '', null])('rejects scenario %j with copy.errors.scenario', (value) => {
+  it('accepts scenario null as the natural flow', () => {
+    expect(createConsultationInputSchema(TODAY).parse({ ...VALID_BODY, scenario: null }).scenario).toBeNull();
+  });
+
+  it.each(['delta_slow', 'ALL_APPROVE', ''])('rejects scenario %j with copy.errors.scenario', (value) => {
     expect(apiErrors({ ...VALID_BODY, scenario: value })).toEqual({ scenario: [copy.errors.scenario] });
   });
 

@@ -58,13 +58,13 @@ export function OffersTable({ consultationId, offers, choice, querying }: Props)
         <form action={formAction}>
           <input type="hidden" name="consultationId" value={consultationId} />
           <div aria-hidden className={`hidden border-b border-rule pb-2 text-sm text-ink-muted ${ROW_GRID}`}>
-            <span>Prazo</span>
-            <span>Parcela</span>
-            <span>Total pago</span>
-            <span>Financeira</span>
+            <span>{copy.offers.columns.term}</span>
+            <span>{copy.offers.columns.installment}</span>
+            <span>{copy.offers.columns.total}</span>
+            <span>{copy.offers.columns.lender}</span>
             <span />
           </div>
-          <ul aria-label="Ofertas" className="divide-y divide-rule border-b border-rule">
+          <ul aria-label={copy.offers.listLabel} className="divide-y divide-rule border-b border-rule">
             {sorted.map((offer) => {
               const value = `${offer.lenderId}:${offer.termMonths}`;
               const chosen = choice !== null && choice.lenderId === offer.lenderId && choice.termMonths === offer.termMonths;

@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 import { startNewSimulation } from '@/app/register/actions';
 import { copy } from '@/src/copy/pt-BR';
 import { formatRatePercent } from '@/src/components/format';
-import { formatBRL } from '@/src/domain/money';
+import { formatBRL, percentCovered } from '@/src/domain/money';
 import { readConsultationSnapshot } from '@/src/server/snapshot';
 
 export const metadata: Metadata = { title: copy.confirmation.title };
@@ -55,7 +55,7 @@ async function ConfirmationContent({ params }: Pick<PageProps<'/consultations/[i
       </dl>
       {partial ? (
         <p role="status" className="rounded-control bg-amber-soft px-4 py-3 text-amber">
-          {copy.offers.coveragePartial(Math.floor((choice.financedAmountCents * 100) / treatmentAmountCents), formatBRL(treatmentAmountCents - choice.financedAmountCents))}
+          {copy.offers.coveragePartial(percentCovered(choice.financedAmountCents, treatmentAmountCents), formatBRL(treatmentAmountCents - choice.financedAmountCents))}
         </p>
       ) : null}
       <form action={startNewSimulation}>

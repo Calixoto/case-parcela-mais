@@ -22,7 +22,13 @@ export async function POST(request: NextRequest, context: RouteContext<'/api/con
   const parsed = bodySchema.safeParse(payload);
   if (!parsed.success) return apiError('validation_failed', copy.api.validationFailed, 422);
 
-  const result = chooseOffer(getDb(), { consultationId: id, ...parsed.data }, { now: Date.now() });
+  let result: ReturnType<typeof chooseOffer>;
+  try {
+    result = chooseOffer(getDb(), { consultationId: id, ...parsed.data }, { now: Date.now() });
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'choose_offer_failed', consultationId: id, error: error instanceof Error ? error.message : String(error) }));
+    return apiError('internal_error', copy.api.internalError, 500);
+  }
   if (result.ok) return json({ choice: result.choice }, result.created ? 201 : 200);
   switch (result.code) {
     case 'not_found':

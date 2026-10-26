@@ -182,7 +182,7 @@ export function createConsultationInputSchema(todayIso: string) {
       { error: copy.api.validationFailed },
     ),
     treatmentAmountCents: centsField(isWithinTreatmentLimits, copy.errors.treatmentAmount),
-    scenario: z.enum(SCENARIO_IDS, { error: copy.errors.scenario }).optional(),
+    scenario: z.enum(SCENARIO_IDS, { error: copy.errors.scenario }).nullish(),
     overrides: z.unknown().optional(),
   });
 }

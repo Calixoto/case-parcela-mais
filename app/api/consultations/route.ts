@@ -30,15 +30,21 @@ export async function POST(request: Request) {
   let overrides;
   try {
     overrides = parseOverrides(parsed.data.overrides);
-  } catch (error) {
-    return apiError('validation_failed', error instanceof Error ? error.message : copy.api.validationFailed, 422);
+  } catch {
+    return apiError('validation_failed', copy.api.invalidOverrides, 422);
   }
 
-  const { id, deadlineAt } = createConsultation(
-    getDb(),
-    { patient: parsed.data.patient, treatmentAmountCents: parsed.data.treatmentAmountCents, scenario: parsed.data.scenario ?? null },
-    { now: Date.now(), todayIso: today, deadlineMs: config.consultationDeadlineMs, lenders: LENDERS },
-  );
-  after(() => startConsultationRun(id, overrides));
-  return json({ consultationId: id, deadlineAt }, 201);
+  let created: { id: string; deadlineAt: number };
+  try {
+    created = createConsultation(
+      getDb(),
+      { patient: parsed.data.patient, treatmentAmountCents: parsed.data.treatmentAmountCents, scenario: parsed.data.scenario ?? null },
+      { now: Date.now(), todayIso: today, deadlineMs: config.consultationDeadlineMs, lenders: LENDERS },
+    );
+  } catch (error) {
+    console.error(JSON.stringify({ event: 'consultation_create_failed', error: error instanceof Error ? error.message : String(error) }));
+    return apiError('internal_error', copy.api.internalError, 500);
+  }
+  after(() => startConsultationRun(created.id, overrides));
+  return json({ consultationId: created.id, deadlineAt: created.deadlineAt }, 201);
 }

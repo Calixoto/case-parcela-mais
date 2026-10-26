@@ -1,5 +1,5 @@
 import { copy } from '@/src/copy/pt-BR';
-import { formatBRL } from '@/src/domain/money';
+import { formatBRL, percentCovered } from '@/src/domain/money';
 import type { LenderResult, LenderStatus } from '@/src/domain/types';
 import { formatRatePercent, formatSeconds } from '../format';
 
@@ -26,7 +26,7 @@ function detail(lender: LenderResult, treatmentAmountCents: number, timeoutMs: n
   if (lender.status === 'approved' && lender.approvedAmountCents !== null && lender.monthlyRate !== null) {
     const rate = formatRatePercent(lender.monthlyRate);
     if (lender.approvedAmountCents >= treatmentAmountCents) return copy.consultation.approvedFull(rate);
-    const percent = Math.floor((lender.approvedAmountCents * 100) / treatmentAmountCents);
+    const percent = percentCovered(lender.approvedAmountCents, treatmentAmountCents);
     return copy.consultation.approvedPartial(percent, formatBRL(lender.approvedAmountCents), rate);
   }
   if (lender.status === 'querying') return '';
@@ -40,7 +40,7 @@ function detail(lender: LenderResult, treatmentAmountCents: number, timeoutMs: n
 /** One row per lender, in registry order, updated by lender id (never by position). */
 export function LenderBoard({ lenders, treatmentAmountCents, timeoutMs }: { readonly lenders: readonly LenderResult[]; readonly treatmentAmountCents: number; readonly timeoutMs: number }) {
   return (
-    <ul aria-live="polite" aria-label="Financeiras consultadas" className="divide-y divide-rule border-y border-rule">
+    <ul aria-live="polite" aria-label={copy.consultation.boardLabel} className="divide-y divide-rule border-y border-rule">
       {lenders.map((lender) => (
         <li key={lender.lenderId} className="grid grid-cols-[6rem_1fr_auto] items-center gap-x-4 gap-y-1 py-4 md:grid-cols-[8rem_9rem_1fr_4rem]">
           <span className="font-display text-2xl md:text-3xl">{lender.lenderName}</span>

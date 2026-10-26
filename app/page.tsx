@@ -1,15 +1,10 @@
-import Link from 'next/link';
 import { Suspense } from 'react';
-import { applyPersona } from '@/app/register/actions';
+import { applyPersona, startNewSimulation } from '@/app/register/actions';
 import { ResumeConsultation } from '@/src/components/home/resume-consultation';
 import { copy } from '@/src/copy/pt-BR';
 import { SCENARIO_IDS } from '@/src/domain/types';
 
-const PERSONAS = [
-  { id: 'A', label: 'Persona A: 30 anos, renda R$ 5.000, tratamento R$ 15.000' },
-  { id: 'B', label: 'Persona B: 22 anos, renda R$ 1.500, tratamento R$ 25.000' },
-  { id: 'C', label: 'Persona C: 40 anos, renda R$ 3.000, tratamento R$ 45.000' },
-] as const;
+const PERSONA_IDS = ['A', 'B', 'C'] as const;
 
 export default function HomePage() {
   return (
@@ -18,9 +13,12 @@ export default function HomePage() {
         <h1 className="font-display text-5xl">{copy.home.title}</h1>
         <p className="max-w-prose text-lg text-ink-muted">{copy.home.lead}</p>
         <div className="flex flex-wrap gap-3">
-          <Link href="/register/patient" className="inline-flex h-12 w-fit items-center rounded-control bg-mint px-5 font-medium text-enamel hover:bg-[#19775f]">
-            {copy.home.start}
-          </Link>
+          {/* A Server Action, not a link: starting over clears the previous patient's draft from this browser. */}
+          <form action={startNewSimulation}>
+            <button type="submit" className="inline-flex h-12 w-fit items-center rounded-control bg-mint px-5 font-medium text-enamel hover:bg-[#19775f]">
+              {copy.home.start}
+            </button>
+          </form>
           {/* Reads a cookie: streams in behind the static shell. */}
           <Suspense fallback={null}>
             <ResumeConsultation />
@@ -33,11 +31,11 @@ export default function HomePage() {
         <p className="text-ink-muted">{copy.home.demoLead}</p>
         <form action={applyPersona} className="flex flex-col gap-4">
           <fieldset className="flex flex-col gap-2">
-            <legend className="sr-only">Pessoa fictícia</legend>
-            {PERSONAS.map((persona, index) => (
-              <label key={persona.id} className="flex items-center gap-3">
-                <input type="radio" name="persona" value={persona.id} defaultChecked={index === 0} className="accent-mint" />
-                <span>{persona.label}</span>
+            <legend className="sr-only">{copy.home.personaLegend}</legend>
+            {PERSONA_IDS.map((persona, index) => (
+              <label key={persona} className="flex items-center gap-3">
+                <input type="radio" name="persona" value={persona} defaultChecked={index === 0} className="accent-mint" />
+                <span>{copy.home.personas[persona]}</span>
               </label>
             ))}
           </fieldset>
@@ -53,7 +51,7 @@ export default function HomePage() {
             </select>
           </label>
           <button type="submit" className="inline-flex h-12 w-fit items-center rounded-control border border-rule px-5 font-medium text-ink hover:border-ink">
-            Abrir demonstração
+            {copy.home.openDemo}
           </button>
         </form>
       </section>

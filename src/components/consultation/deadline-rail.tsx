@@ -38,10 +38,11 @@ export function DeadlineRail({ status, startedAt, deadlineAt, finishedAt, finish
     <div className="flex flex-col gap-2">
       <div
         role="progressbar"
+        aria-label={copy.consultation.railLabel}
         aria-valuemin={0}
-        aria-valuemax={timeoutMs}
-        aria-valuenow={Math.round(shown)}
-        aria-label={label}
+        aria-valuemax={Math.round(timeoutMs / 1000)}
+        aria-valuenow={Math.round(shown / 1000)}
+        aria-valuetext={status === 'finished' ? label : `${Math.round(shown / 1000)} de ${totalSeconds} s`}
         className="h-3 w-full overflow-hidden rounded-control bg-slate-soft"
       >
         <div

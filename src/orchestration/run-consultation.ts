@@ -52,6 +52,14 @@ export async function runConsultation(consultationId: string, deps: Orchestratio
   );
 
   function settle(lender: LenderConfig, result: SettledResult): void {
+    try {
+      persist(lender, result);
+    } catch (error) {
+      deps.log({ event: 'lender_settle_failed', consultationId, lenderId: lender.id, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  function persist(lender: LenderConfig, result: SettledResult): void {
     const changes = settleLenderResult(deps.db, consultationId, lender.id, result);
     if (changes === 1) {
       deps.log({ event: 'lender_settled', consultationId, lenderId: lender.id, status: result.status, reasonCode: result.reasonCode, latencyMs: result.latencyMs });
@@ -70,7 +78,14 @@ export async function runConsultation(consultationId: string, deps: Orchestratio
     finishReason: deadlineHit ? 'deadline' : 'all_responded',
     timeoutMs,
   });
-  deps.log({ event: 'consultation_finished', consultationId, finishReason: deadlineHit ? 'deadline' : 'all_responded', expired: outcome.expired, elapsedMs: finishedAt - startedAt, forcedScenario });
+  deps.log({
+    event: outcome.finished ? 'consultation_finished' : 'consultation_already_finished', // a read may have reconciled it first
+    consultationId,
+    finishReason: deadlineHit ? 'deadline' : 'all_responded',
+    expired: outcome.expired,
+    elapsedMs: finishedAt - startedAt,
+    forcedScenario,
+  });
 }
 
 function quoteToResult(quote: LenderQuote, respondedAt: number, startedAt: number): SettledResult {

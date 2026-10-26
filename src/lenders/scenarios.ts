@@ -58,6 +58,9 @@ export function resolveOverrides(
 
 const OUTCOMES = ['natural', 'approve', 'refuse', 'error', 'timeout'] as const;
 
+/** Longest delay an explicit override may ask for: enough to overshoot any sane deadline, never a timer that outlives the demo. */
+export const MAX_OVERRIDE_DELAY_MS = 60_000;
+
 /** Validates the optional per-lender overrides accepted by the JSON API; anything malformed is rejected. */
 export function parseOverrides(value: unknown): Overrides | undefined {
   if (value === undefined || value === null) return undefined;
@@ -67,7 +70,9 @@ export function parseOverrides(value: unknown): Overrides | undefined {
     if (typeof raw !== 'object' || raw === null) throw new TypeError(`override for ${lenderId} must be an object`);
     const { outcome, delayMs } = raw as { outcome?: unknown; delayMs?: unknown };
     if (!(OUTCOMES as readonly unknown[]).includes(outcome)) throw new TypeError(`override for ${lenderId}: unknown outcome`);
-    if (delayMs !== undefined && !(Number.isInteger(delayMs) && (delayMs as number) >= 0)) throw new TypeError(`override for ${lenderId}: delayMs must be a non-negative integer`);
+    if (delayMs !== undefined && !(Number.isInteger(delayMs) && (delayMs as number) >= 0 && (delayMs as number) <= MAX_OVERRIDE_DELAY_MS)) {
+      throw new TypeError(`override for ${lenderId}: delayMs must be an integer between 0 and ${MAX_OVERRIDE_DELAY_MS}`);
+    }
     result[lenderId] = delayMs === undefined ? { outcome: outcome as LenderOverride['outcome'] } : { outcome: outcome as LenderOverride['outcome'], delayMs: delayMs as number };
   }
   return result;

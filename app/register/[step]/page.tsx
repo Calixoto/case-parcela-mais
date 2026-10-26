@@ -53,9 +53,7 @@ async function StepContent({ params, searchParams }: Pick<PageProps<'/register/[
         <h1 className="font-display text-4xl">{copy.steps[step].title}</h1>
         <p className="text-ink-muted">{copy.steps[step].lead}</p>
       </header>
-      {/* Keyed on the stored draft: with Cache Components the previous route stays mounted (<Activity>), so a
-          cleared or changed draft must remount the uncontrolled inputs instead of reusing their DOM state. */}
-      <StepForm key={`${step}:${JSON.stringify(draft)}`} step={step} draft={draft} scenario={scenario} hint={hint} todayIso={todayIso(getConfig().timeZone)} />
+      <StepForm step={step} draft={draft} scenario={scenario} hint={hint} todayIso={todayIso(getConfig().timeZone)} />
     </div>
   );
 }
