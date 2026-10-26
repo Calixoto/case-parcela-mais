@@ -11,7 +11,7 @@ export function NoApprovalPanel({ summary }: { readonly summary: ConsultationSum
         {copy.offers.noneTitle}
       </h2>
       <p className="text-ink-muted">{copy.offers.noneLead(summary.refusedCount, summary.unavailableCount)}</p>
-      <p>{lowerAmount ? copy.offers.hintLowerAmount : copy.offers.hintRetry}</p>
+      <p>{lowerAmount ? copy.offers.hintLowerAmount : summary.unavailableCount > 0 ? copy.offers.hintRetry : copy.offers.hintRetryRefused}</p>
       <Link
         href={lowerAmount ? '/register/financing?hint=lower_amount' : '/register/financing?hint=retry'}
         className="inline-flex h-12 w-fit items-center rounded-control bg-mint px-5 font-medium text-enamel"

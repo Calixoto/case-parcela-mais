@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { io } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { StepForm } from '@/src/components/register/step-form';
@@ -38,6 +39,7 @@ async function StepContent({ params, searchParams }: Pick<PageProps<'/register/[
   const { step } = await params;
   assertStep(step);
   const [draft, { scenario, hint }] = await Promise.all([readDraft(), loadRegisterSearchParams(searchParams)]);
+  await io(); // the civil date below comes from the clock: keep it out of the static shell
 
   // Guard: the amount step needs the patient step first (deep link or expired cookie).
   if (step === 'financing' && !REGISTRATION_STEPS[0].fields.every((field) => draft[field])) {
@@ -51,7 +53,9 @@ async function StepContent({ params, searchParams }: Pick<PageProps<'/register/[
         <h1 className="font-display text-4xl">{copy.steps[step].title}</h1>
         <p className="text-ink-muted">{copy.steps[step].lead}</p>
       </header>
-      <StepForm step={step} draft={draft} scenario={scenario} hint={hint} todayIso={todayIso(getConfig().timeZone)} />
+      {/* Keyed on the stored draft: with Cache Components the previous route stays mounted (<Activity>), so a
+          cleared or changed draft must remount the uncontrolled inputs instead of reusing their DOM state. */}
+      <StepForm key={`${step}:${JSON.stringify(draft)}`} step={step} draft={draft} scenario={scenario} hint={hint} todayIso={todayIso(getConfig().timeZone)} />
     </div>
   );
 }

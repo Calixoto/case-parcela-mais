@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { io } from 'next/cache';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { LenderBoardSkeleton } from '@/src/components/consultation/lender-board';
@@ -25,7 +26,8 @@ export default function ConsultationPage({ params }: PageProps<'/consultations/[
 }
 
 async function ConsultationContent({ params }: Pick<PageProps<'/consultations/[id]'>, 'params'>) {
-  const { id } = await params; // request-time: the synchronous SQLite read below never runs at build
+  const { id } = await params;
+  await io(); // request-time clock + synchronous SQLite read: never part of the static shell
   const snapshot = readConsultationSnapshot(id);
   if (!snapshot) notFound();
   return <LiveConsultation initial={snapshot} timeZone={getConfig().timeZone} />;

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { io } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { startNewSimulation } from '@/app/register/actions';
@@ -21,6 +22,7 @@ export default function ConfirmationPage({ params }: PageProps<'/consultations/[
 
 async function ConfirmationContent({ params }: Pick<PageProps<'/consultations/[id]/confirmation'>, 'params'>) {
   const { id } = await params;
+  await io();
   const snapshot = readConsultationSnapshot(id);
   if (!snapshot) notFound();
   if (!snapshot.choice) redirect(`/consultations/${id}`);

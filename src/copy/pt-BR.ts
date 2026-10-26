@@ -66,7 +66,7 @@ export const copy = {
     none_approve: 'Nenhuma aprova',
   },
   consultation: {
-    title: 'Pré-aprovação',
+    title: 'Consulta das financeiras',
     treatment: 'tratamento',
     startedAt: (time: string) => `Consulta de hoje, ${time}`,
     rail: (elapsed: string, total: string) => `${elapsed} s de ${total} s`,
@@ -89,10 +89,16 @@ export const copy = {
     coverageFull: 'Cobre tudo',
     coveragePartial: (percent: number, missing: string) => `Cobre ${percent}%, faltam ${missing}`,
     noneTitle: 'Nenhuma financeira aprovou',
-    noneLead: (refused: number, unavailable: number) =>
-      `${refused} ${refused === 1 ? 'recusou' : 'recusaram'} e ${unavailable} ${unavailable === 1 ? 'ficou indisponível' : 'ficaram indisponíveis'}.`,
+    noneLead: (refused: number, unavailable: number) => {
+      const parts = [
+        refused > 0 ? `${refused} ${refused === 1 ? 'recusou' : 'recusaram'}` : null,
+        unavailable > 0 ? `${unavailable} ${unavailable === 1 ? 'ficou indisponível' : 'ficaram indisponíveis'}` : null,
+      ].filter(Boolean);
+      return `${parts.join(' e ')}.`;
+    },
     hintLowerAmount: 'Com um valor menor, as financeiras que recusaram por renda ou limite podem aprovar.',
     hintRetry: 'As financeiras que não responderam podem responder numa nova consulta.',
+    hintRetryRefused: 'Nenhuma recusa depende do valor. Você pode consultar de novo com os mesmos dados ou revisar o cadastro.',
     waiting: 'As ofertas aparecem aqui conforme as financeiras respondem.',
   },
   confirmation: {
