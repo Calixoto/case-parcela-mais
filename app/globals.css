@@ -1,26 +1,96 @@
 @import "tailwindcss";
 
+/* Palette: porcelain and enamel surfaces, deep teal ink, mint for action and approval. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --porcelain: #f3f6f5;
+  --enamel: #ffffff;
+  --ink: #11302e;
+  --ink-muted: #5c6f6c;
+  --rule: #c9d5d2;
+  --mint: #1e8a6e;
+  --mint-soft: #dcf1e9;
+  --amber: #b4761d;
+  --amber-soft: #faeed5;
+  --brick: #b1402c;
+  --brick-soft: #f8e2dd;
+  --slate: #6a7b79;
+  --slate-soft: #e5ebea;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-porcelain: var(--porcelain);
+  --color-enamel: var(--enamel);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-rule: var(--rule);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-brick: var(--brick);
+  --color-brick-soft: var(--brick-soft);
+  --color-slate: var(--slate);
+  --color-slate-soft: var(--slate-soft);
+  --font-sans: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --radius-control: 4px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--porcelain);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+/* Display type: the characteristic voice of the page (step titles, lender names, installments). */
+@utility font-display {
+  font-variation-settings: "opsz" 96, "wdth" 90;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* Ruled input: only a bottom line, like a paper form. */
+@utility input-ruled {
+  width: 100%;
+  border: 0;
+  border-bottom: 1.5px solid color-mix(in oklab, var(--ink) 40%, transparent);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.5rem 0;
+  font: inherit;
+  color: var(--ink);
+  transition: border-color 150ms ease;
+  &::placeholder {
+    color: color-mix(in oklab, var(--ink-muted) 60%, transparent);
+  }
+  &:focus {
+    outline: none;
+    border-bottom: 2px solid var(--mint);
+    margin-bottom: -0.5px;
+  }
+  &[aria-invalid="true"] {
+    border-bottom-color: var(--brick);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
