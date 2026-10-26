@@ -44,7 +44,7 @@ function StepFormBody({ step, draft, scenario, hint, todayIso, state, formAction
   const values: RawDraft = { ...draft, ...state.values };
   const fields = REGISTRATION_STEPS.find((candidate) => candidate.slug === step)!.fields;
   const schema = useMemo(() => (step === 'patient' ? createPatientStepSchema(todayIso) : financingStepSchema), [step, todayIso]);
-  const { errorFor, onBlur, onChange, validateAll } = useStepValidation(schema, fields, state.fieldErrors);
+  const { errorFor, onBlur, onChange, onCompositionEnd, validateAll } = useStepValidation(schema, fields, state.fieldErrors);
 
   // "Voltar" never validates; "Continuar" validates on the client first (the server validates again).
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -53,7 +53,7 @@ function StepFormBody({ step, draft, scenario, hint, todayIso, state, formAction
     if (!validateAll(event.currentTarget)) event.preventDefault();
   };
 
-  const shared = { onBlur, onChange };
+  const shared = { onBlur, onChange, onCompositionEnd };
   const isFinancing = step === 'financing';
 
   return (
@@ -62,9 +62,9 @@ function StepFormBody({ step, draft, scenario, hint, todayIso, state, formAction
         {step === 'patient' ? (
           <>
             <TextField name="fullName" label={copy.fields.fullName.label} placeholder={copy.fields.fullName.placeholder} defaultValue={values.fullName} error={errorFor('fullName')} maxLength={120} autoComplete="name" autoFocus {...shared} />
-            <TextField name="cpf" label={copy.fields.cpf.label} placeholder={copy.fields.cpf.placeholder} defaultValue={values.cpf} error={errorFor('cpf')} inputMode="numeric" maxLength={14} autoComplete="off" {...shared} />
+            <TextField name="cpf" label={copy.fields.cpf.label} placeholder={copy.fields.cpf.placeholder} defaultValue={values.cpf} error={errorFor('cpf')} inputMode="numeric" maxLength={20} autoComplete="off" {...shared} />
             <TextField name="birthDate" label={copy.fields.birthDate.label} type="date" max={todayIso} defaultValue={values.birthDate} error={errorFor('birthDate')} autoComplete="bday" {...shared} />
-            <TextField name="phone" label={copy.fields.phone.label} placeholder={copy.fields.phone.placeholder} defaultValue={values.phone} error={errorFor('phone')} inputMode="tel" maxLength={16} autoComplete="tel-national" {...shared} />
+            <TextField name="phone" label={copy.fields.phone.label} placeholder={copy.fields.phone.placeholder} defaultValue={values.phone} error={errorFor('phone')} inputMode="tel" maxLength={20} autoComplete="tel-national" {...shared} />
           </>
         ) : (
           <>

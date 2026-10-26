@@ -22,7 +22,17 @@ export function SubmitButton({ children, pendingLabel, variant = 'primary', name
   // Every submit button locks while the form is in flight; only the one that was pressed shows the pending state.
   const pressed = name === undefined || data?.get(name) === (value ?? '');
   return (
-    <Button type="submit" variant={variants[variant]} name={name} value={value} formNoValidate={formNoValidate} disabled={pending}>
+    <Button
+      type="submit"
+      variant={variants[variant]}
+      name={name}
+      value={value}
+      formNoValidate={formNoValidate}
+      disabled={pending}
+      // Clicking keeps the focus in the field: no blur, so no error appears (or disappears) and moves the button
+      // mid-click. "Voltar" never validates and "Continuar" validates every field on submit anyway.
+      onMouseDown={(event) => event.preventDefault()}
+    >
       {pending && pressed ? (
         <>
           <Spinner aria-hidden="true" />

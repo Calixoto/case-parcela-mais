@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChangeEventHandler, FocusEventHandler, HTMLInputAutoCompleteAttribute } from 'react';
+import type { ChangeEventHandler, CompositionEventHandler, FocusEventHandler, HTMLInputAutoCompleteAttribute } from 'react';
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/src/components/ui/field';
 import { Input } from '@/src/components/ui/input';
 
@@ -21,10 +21,11 @@ type Props = {
   readonly describedBy?: string;
   readonly onBlur?: FocusEventHandler<HTMLInputElement>;
   readonly onChange?: ChangeEventHandler<HTMLInputElement>;
+  readonly onCompositionEnd?: CompositionEventHandler<HTMLInputElement>;
 };
 
 /** Labelled input with optional help text and an error message read by screen readers; the help yields to the error. */
-export function TextField({ name, label, defaultValue, error, help, type = 'text', inputMode, placeholder, autoComplete, autoFocus, max, maxLength, describedBy: extraDescribedBy, onBlur, onChange }: Props) {
+export function TextField({ name, label, defaultValue, error, help, type = 'text', inputMode, placeholder, autoComplete, autoFocus, max, maxLength, describedBy: extraDescribedBy, onBlur, onChange, onCompositionEnd }: Props) {
   const id = `field-${name}`;
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
@@ -48,6 +49,7 @@ export function TextField({ name, label, defaultValue, error, help, type = 'text
         aria-describedby={describedBy}
         onBlur={onBlur}
         onChange={onChange}
+        onCompositionEnd={onCompositionEnd}
       />
       {showHelp ? <FieldDescription id={helpId}>{help}</FieldDescription> : null}
       {error ? <FieldError id={errorId}>{error}</FieldError> : null}

@@ -1,31 +1,33 @@
 'use client';
 
-import { useCallback, useRef, useState, type ChangeEvent, type FocusEvent } from 'react';
+import { useCallback, useRef, useState, type ChangeEvent, type CompositionEvent, type FocusEvent } from 'react';
 import type { z } from 'zod';
-import { formatCpf, normalizeCpf } from '@/src/domain/cpf';
-import { formatBRL, parseBRL } from '@/src/domain/money';
 import { fieldErrorsOf, type FieldErrors } from '@/src/domain/registration-schema';
+import { formatOnBlur, maskInput } from './masks';
 
 type ClientErrors = Record<string, string | undefined>;
 
-/** Pretty-prints a value when the user leaves the field; the raw text is what gets validated and stored. */
-export function formatOnBlur(name: string, value: string): string {
-  const trimmed = value.trim();
-  if (name === 'cpf' && normalizeCpf(trimmed).length === 11) return formatCpf(normalizeCpf(trimmed));
-  if (name === 'phone') {
-    const digits = trimmed.replace(/\D/g, '');
-    if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-  }
-  if (name === 'monthlyIncome' || name === 'treatmentAmount') {
-    const cents = parseBRL(trimmed);
-    if (cents !== null) return formatBRL(cents);
-  }
-  return value;
+/** What each input showed after its last mask or completion: an edit is read against it. */
+const lastValues = new WeakMap<HTMLInputElement, string>();
+
+/** Writes a value only when it changes (assigning to a half-typed date input would clear it) and remembers it. */
+function writeValue(input: HTMLInputElement, value: string): void {
+  if (value !== input.value) input.value = value;
+  lastValues.set(input, value);
+}
+
+/** Rewrites the input with its mask while the clinic types, keeping the caret next to what was typed. */
+function applyMask(input: HTMLInputElement, inputType: string): void {
+  const previous = lastValues.get(input) ?? input.defaultValue;
+  const masked = maskInput(input.name, previous, input.value, input.selectionStart ?? input.value.length, inputType);
+  if (masked === null) return;
+  writeValue(input, masked.value);
+  input.setSelectionRange(masked.caret, masked.caret);
 }
 
 /**
- * Instant validation with the same zod schema the Server Action uses: a field is checked when the user
- * leaves it, and again on every keystroke once it has an error. Server errors show for untouched fields.
+ * Instant validation with the same zod schema the Server Action uses: a field the clinic changed is checked when it
+ * is left, and again on every keystroke once it has an error. Server errors show for untouched fields.
  */
 export function useStepValidation(schema: z.ZodType, fields: readonly string[], serverErrors?: FieldErrors) {
   const [clientErrors, setClientErrors] = useState<ClientErrors>({});
@@ -53,7 +55,12 @@ export function useStepValidation(schema: z.ZodType, fields: readonly string[], 
   const onBlur = useCallback(
     (event: FocusEvent<HTMLInputElement>) => {
       const input = event.currentTarget;
-      input.value = formatOnBlur(input.name, input.value);
+      writeValue(input, formatOnBlur(input.name, input.value));
+      // No error for a field left as it was (the autofocused one, say), nor when the focus goes to a button that skips
+      // validation ("Voltar"): an error appearing mid-click pushes the buttons down and the click is lost.
+      const towardsNoValidate = event.relatedTarget instanceof HTMLButtonElement && event.relatedTarget.formNoValidate;
+      const untouched = input.value === input.defaultValue && !touched.current.has(input.name);
+      if (towardsNoValidate || untouched) return;
       touched.current.add(input.name);
       if (input.form) validate(input.form, input.name);
     },
@@ -63,15 +70,25 @@ export function useStepValidation(schema: z.ZodType, fields: readonly string[], 
   const onChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const input = event.currentTarget;
+      const native = event.nativeEvent as InputEvent;
+      // While an IME composes, the text is not final: the mask runs on compositionend instead.
+      if (native.isComposing) return;
+      // Autofill and other edits without an inputType are read like a paste: the whole value is new.
+      applyMask(input, native.inputType || 'insertFromPaste');
       if (clientErrors[input.name] && input.form) validate(input.form, input.name);
     },
     [clientErrors, validate],
   );
 
-  /** Before submitting: validates everything and focuses the first invalid field. Returns true when valid. */
+  /** Before submitting: completes every value (as leaving it would), validates everything and focuses the first invalid field. */
   const validateAll = useCallback(
     (form: HTMLFormElement): boolean => {
-      for (const field of fields) touched.current.add(field);
+      for (const field of fields) {
+        touched.current.add(field);
+        // Runs before React reads the FormData, so "R$ 15.000," submitted with Enter reaches the server as "R$ 15.000,00".
+        const input = form.elements.namedItem(field);
+        if (input instanceof HTMLInputElement) writeValue(input, formatOnBlur(field, input.value));
+      }
       const valid = validate(form);
       if (!valid) {
         const data = new FormData(form);
@@ -90,5 +107,7 @@ export function useStepValidation(schema: z.ZodType, fields: readonly string[], 
   const errorFor = (field: string): string | undefined =>
     touched.current.has(field) ? clientErrors[field] : (clientErrors[field] ?? serverErrors?.[field]?.[0]);
 
-  return { errorFor, onBlur, onChange, validateAll };
+  const onCompositionEnd = useCallback((event: CompositionEvent<HTMLInputElement>) => applyMask(event.currentTarget, 'insertFromPaste'), []);
+
+  return { errorFor, onBlur, onChange, onCompositionEnd, validateAll };
 }
