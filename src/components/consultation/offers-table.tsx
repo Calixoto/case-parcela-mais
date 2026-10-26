@@ -21,7 +21,10 @@ const initialChooseState: ChooseOfferState = { attempt: 0 };
 
 const sortLabels: Record<SortCriterion, string> = { installment: copy.offers.sortInstallment, total: copy.offers.sortTotal };
 
-/** Offers as a ledger: one line per lender × term, sorted on the client from URL state (`?sort=`). */
+/** Desktop: one ledger line per lender × term. Mobile: the same line folded in two (amounts, then details). */
+const ROW_GRID = 'md:grid md:grid-cols-[4rem_8.5rem_9rem_1fr_auto] md:items-center md:gap-x-4';
+
+/** Offers sorted on the client from URL state (`?sort=`); the amounts were computed on the server. */
 export function OffersTable({ consultationId, offers, choice, querying }: Props) {
   const [sort, setSort] = useQueryState('sort', sortParser);
   const sorted = useMemo(() => sortOffers(offers, sort), [offers, sort]);
@@ -33,11 +36,14 @@ export function OffersTable({ consultationId, offers, choice, querying }: Props)
         <h2 id="offers-title" className="font-display text-2xl">
           {copy.offers.title(offers.length)}
         </h2>
-        <fieldset className="flex items-center gap-2 text-sm">
+        <fieldset className="flex flex-wrap items-center gap-2 text-sm">
           <legend className="sr-only">{copy.offers.sortBy}</legend>
           <span className="text-ink-muted">{copy.offers.sortBy}</span>
           {SORT_CRITERIA.map((criterion) => (
-            <label key={criterion} className={`cursor-pointer rounded-control border px-3 py-1 ${sort === criterion ? 'border-ink bg-enamel text-ink' : 'border-rule text-ink-muted'}`}>
+            <label
+              key={criterion}
+              className={`cursor-pointer rounded-control border px-3 py-1 ${sort === criterion ? 'border-ink bg-enamel text-ink' : 'border-rule text-ink-muted'}`}
+            >
               <input type="radio" name="sort" value={criterion} checked={sort === criterion} onChange={() => void setSort(criterion)} className="sr-only" />
               {sortLabels[criterion]}
             </label>
@@ -49,51 +55,40 @@ export function OffersTable({ consultationId, offers, choice, querying }: Props)
       {offers.length === 0 ? <p className="text-ink-muted">{copy.offers.waiting}</p> : null}
 
       {offers.length > 0 ? (
-        <form action={formAction} className="overflow-x-auto">
+        <form action={formAction}>
           <input type="hidden" name="consultationId" value={consultationId} />
-          <table className="w-full border-collapse text-left">
-            <thead className="text-sm text-ink-muted">
-              <tr className="border-b border-rule">
-                <th scope="col" className="py-2 pr-3 font-normal">
-                  Prazo
-                </th>
-                <th scope="col" className="py-2 pr-3 font-normal">
-                  Parcela
-                </th>
-                <th scope="col" className="py-2 pr-3 font-normal">
-                  Total pago
-                </th>
-                <th scope="col" className="py-2 pr-3 font-normal">
-                  Financeira
-                </th>
-                <th scope="col" className="py-2 font-normal">
-                  <span className="sr-only">Ação</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((offer) => {
-                const value = `${offer.lenderId}:${offer.termMonths}`;
-                const chosen = choice !== null && choice.lenderId === offer.lenderId && choice.termMonths === offer.termMonths;
-                return (
-                  <tr key={value} className={`border-b border-rule ${chosen ? 'bg-mint-soft' : ''}`}>
-                    <td className="py-3 pr-3 font-display text-2xl">{copy.offers.termTimes(offer.termMonths)}</td>
-                    <td className="py-3 pr-3 font-display text-2xl">{formatBRL(offer.installmentCents)}</td>
-                    <td className="py-3 pr-3 text-ink-muted">{formatBRL(offer.totalCents)}</td>
-                    <td className="py-3 pr-3">
-                      <span className="block">{offer.lenderName}</span>
-                      <span className={`block text-sm ${offer.isPartial ? 'text-amber' : 'text-ink-muted'}`}>
+          <div aria-hidden className={`hidden border-b border-rule pb-2 text-sm text-ink-muted ${ROW_GRID}`}>
+            <span>Prazo</span>
+            <span>Parcela</span>
+            <span>Total pago</span>
+            <span>Financeira</span>
+            <span />
+          </div>
+          <ul aria-label="Ofertas" className="divide-y divide-rule border-b border-rule">
+            {sorted.map((offer) => {
+              const value = `${offer.lenderId}:${offer.termMonths}`;
+              const chosen = choice !== null && choice.lenderId === offer.lenderId && choice.termMonths === offer.termMonths;
+              return (
+                <li key={value} className={`flex items-start justify-between gap-3 py-3 ${ROW_GRID} ${chosen ? 'bg-mint-soft' : ''}`}>
+                  <div className="flex flex-col gap-0.5 md:contents">
+                    <div className="flex items-baseline gap-3 md:contents">
+                      <span className="font-display text-2xl">{copy.offers.termTimes(offer.termMonths)}</span>
+                      <span className="font-display text-2xl">{formatBRL(offer.installmentCents)}</span>
+                    </div>
+                    <span className="text-sm text-ink-muted md:text-base">{copy.offers.total(formatBRL(offer.totalCents))}</span>
+                    <span className="text-sm md:text-base">
+                      <span className="md:block">{offer.lenderName}</span>
+                      <span className={`md:block ${offer.isPartial ? 'text-amber' : 'text-ink-muted'}`}>
+                        {' '}
                         {offer.isPartial ? copy.offers.coveragePartial(offer.coveragePercent, formatBRL(offer.uncoveredCents)) : copy.offers.coverageFull}
                       </span>
-                    </td>
-                    <td className="py-3 text-right">
-                      <ChooseButton value={value} disabled={choice !== null} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    </span>
+                  </div>
+                  <ChooseButton value={value} disabled={choice !== null} />
+                </li>
+              );
+            })}
+          </ul>
           {state.error ? (
             <p role="alert" className="mt-3 rounded-control bg-brick-soft px-4 py-3 text-brick">
               {state.error}
@@ -114,7 +109,7 @@ function ChooseButton({ value, disabled }: { readonly value: string; readonly di
       name="offer"
       value={value}
       disabled={disabled || pending}
-      className="inline-flex h-10 items-center rounded-control bg-mint px-4 text-sm font-medium text-enamel disabled:opacity-50"
+      className="inline-flex h-10 shrink-0 items-center rounded-control bg-mint px-4 text-sm font-medium text-enamel disabled:opacity-50"
     >
       {mine ? copy.actions.choosing : copy.actions.choose}
     </button>
